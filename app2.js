@@ -1,15 +1,15 @@
 "use strict";
 
 /* ================= 视频工厂 ================= */
-let videoState = { style:'news', bg:'#1a1a2e', fg:'#fff', accent:'#f92672', dur:15, text:'', progress:0, rendering:false, result:null };
+let videoState = { style:'news', bg:'#0b1020', fg:'#f8fbff', accent:'#67e8f9', dur:15, text:'', progress:0, rendering:false, result:null };
 let vAnimId = null, vStartT = 0;
 
 const VSTYLES = {
-  news:    { name:'资讯播报', bg:'#0f0f1e', fg:'#fff',     accent:'#00e5ff', font:'sans-serif' },
-  pink:    { name:'种草安利', bg:'#ff6b9d', fg:'#fff',     accent:'#fff48a', font:'sans-serif' },
-  dark:    { name:'暗黑科技', bg:'#0a0a0a', fg:'#00ff88',  accent:'#ff0055', font:'monospace' },
-  warm:    { name:'温暖日常', bg:'#f5a623', fg:'#3d1c00',  accent:'#b40000', font:'serif' },
-  minimal: { name:'极简白',  bg:'#fff',     fg:'#1a1a1a',  accent:'#0066ff', font:'sans-serif' },
+  news:    { name:'深蓝观点', desc:'专业 / 商业', bg:'#0b1020', bg2:'#1f2b5c', fg:'#f8fbff', accent:'#67e8f9', muted:'#a5b4fc', font:'sans-serif', label:'INSIGHT' },
+  pink:    { name:'奶油种草', desc:'生活 / 好物', bg:'#fff0f4', bg2:'#f7d8e4', fg:'#4a2331', accent:'#e94f7b', muted:'#9d6174', font:'sans-serif', label:'GOOD THINGS' },
+  dark:    { name:'暗黑科技', desc:'科技 / 效率', bg:'#05070b', bg2:'#10251f', fg:'#eafff6', accent:'#42f5a7', muted:'#7dd3b0', font:'monospace', label:'FUTURE LAB' },
+  warm:    { name:'日落故事', desc:'情绪 / 叙事', bg:'#241713', bg2:'#8b4932', fg:'#fff7ed', accent:'#fdba74', muted:'#fed7aa', font:'serif', label:'STORY' },
+  minimal: { name:'纸感极简', desc:'知识 / 清单', bg:'#f7f4ed', bg2:'#e8e3d7', fg:'#1f2937', accent:'#3157d5', muted:'#6b7280', font:'sans-serif', label:'FIELD NOTES' },
 };
 
 function renderVideoPage(){
@@ -21,6 +21,7 @@ function renderVideoPage(){
         <div class="card" style="margin-bottom:16px">
           <div class="card-h"><b>🎬 视频工厂</b><span class="bdg b-ok">本地渲染 · 无需联网</span></div>
           <div class="card-b">
+            <div id="vDraftNotice"></div>
             <div class="fld"><label>视频文案（口播文字，将逐句显示在画面上）</label>
               <textarea id="vText" class="ta" rows="4" placeholder="输入视频文案，每句话会自动分成一帧画面显示…">关于副业，我踩过最大的坑就是什么都想做。
 后来我发现，聚焦一个方向死磕三个月，比什么都试一遍强十倍。
@@ -35,7 +36,7 @@ function renderVideoPage(){
               <div class="fld"><label>分辨率</label><select id="vRes" class="sel"><option value="720x1280">720×1280（推荐）</option><option value="1080x1920">1080×1920（高清）</option><option value="480x854">480×854（快速）</option></select></div>
             </div>
             <div class="row2">
-              <div class="fld"><label><label class="ck"><input type="checkbox" id="vBgm" checked> 添加节奏BGM（合成）</label></label></div>
+              <div class="fld"><label>配乐（本地合成）</label><select id="vBgm" class="sel"><option value="soft">轻盈氛围（推荐）</option><option value="pulse">轻快律动</option><option value="none">无配乐</option></select></div>
               <div class="fld"><label><label class="ck"><input type="checkbox" id="vSub" checked> 底部字幕条</label></label></div>
             </div>
             <button class="btn primary block" id="btnRender" style="margin-top:4px">🎬 开始生成视频</button>
@@ -67,7 +68,7 @@ function renderVideoPage(){
           <div class="card-b">
             <div class="tip">
               <b>本地渲染原理：</b>用 Canvas 逐帧绘制文字动画 → 通过 <code>MediaRecorder</code> 录制为 WebM 视频，全程在浏览器内完成，<b>不上传任何数据</b>。<br><br>
-              <b>建议：</b>文案每句一行，会自动拆成画面帧；时长越长每句停留越久；生成后右键视频可"另存为"下载到本地。
+              <b>建议：</b>文案每句一行，会自动拆成画面帧；时长越长每句停留越久。当前声音是轻量背景配乐，不包含真人口播。
             </div>
           </div>
         </div>
@@ -84,14 +85,20 @@ function renderVideoPage(){
   // 风格选择
   const ss = $('#vStyles');
   ss.innerHTML = Object.entries(VSTYLES).map(([k,v]) =>
-    `<span class="chip ${k===videoState.style?'active':''}" data-s="${k}">${v.name}</span>`).join('');
-  ss.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    `<button class="vstyle-card ${k===videoState.style?'active':''}" data-s="${k}" style="--v-bg:${v.bg};--v-bg2:${v.bg2};--v-accent:${v.accent}"><i></i><span><b>${v.name}</b><small>${v.desc}</small></span></button>`).join('');
+  ss.querySelectorAll('.vstyle-card').forEach(c => c.onclick = () => {
     videoState.style = c.dataset.s;
     const s = VSTYLES[videoState.style];
     videoState.bg = s.bg; videoState.fg = s.fg; videoState.accent = s.accent;
-    ss.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === c));
+    ss.querySelectorAll('.vstyle-card').forEach(x => x.classList.toggle('active', x === c));
     drawFrame(videoState._frame || 0);
   });
+  if (S.videoDraft && S.videoDraft.content && videoState.draftId !== S.videoDraft.id) {
+    videoState.draftId = S.videoDraft.id;
+    videoState._frame = 0;
+    $('#vText').value = S.videoDraft.content;
+    $('#vDraftNotice').innerHTML = `<div class="handoff-note"><span>✓</span><div><b>已接收：${esc(S.videoDraft.title)}</b><p>来自${S.videoDraft.source === 'workflow' ? '工作流' : S.videoDraft.source === 'chat' ? 'AI 员工' : '素材库'}，可直接调整并生成视频。</p></div></div>`;
+  }
   videoState.text = $('#vText').value;
   drawFrame(0);
   updateFrameInfo();
@@ -114,64 +121,163 @@ function wrapText(ctx, text, maxW){
   return lines.slice(0, 6);
 }
 
-function drawFrame(idx){
-  const c = $('#vPreview'); if (!c) return;
-  const ctx = c.getContext('2d');
-  const W = c.width, H = c.height;
+function colorAlpha(hex, alpha){
+  let h = String(hex || '#000').replace('#', '');
+  if (h.length === 3) h = h.split('').map(x => x + x).join('');
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+function roundBox(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+const easeOut = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
+
+function drawVideoScene(ctx, W, H, line, idx, total, sceneProgress = 1, showSub = true){
   const s = VSTYLES[videoState.style] || VSTYLES.news;
-  const bg = videoState.bg || s.bg;
-  const fg = videoState.fg || s.fg;
-  const accent = videoState.accent || s.accent;
-  const font = s.font || 'sans-serif';
+  const scale = W / 360;
+  const isLight = videoState.style === 'pink' || videoState.style === 'minimal';
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
 
-  // bg
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  const bg2 = bg.length === 7 ? bg + '88' : bg;
-  g.addColorStop(0, bg); g.addColorStop(1, bg2);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, s.bg); bg.addColorStop(.62, s.bg2); bg.addColorStop(1, s.bg);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  // accent shapes
-  ctx.fillStyle = accent;
-  ctx.globalAlpha = .07;
-  ctx.beginPath(); ctx.arc(W*.8, H*.15, W*.5, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.arc(W*.2, H*.85, W*.4, 0, 7); ctx.fill();
-  ctx.globalAlpha = 1;
+  const glow = ctx.createRadialGradient(W * .82, H * .12, 0, W * .82, H * .12, W * .68);
+  glow.addColorStop(0, colorAlpha(s.accent, isLight ? .22 : .30));
+  glow.addColorStop(1, colorAlpha(s.accent, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
 
-  // accent bar top
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, 5);
-
-  // text
-  const lines = (videoState.text || '输入文案开始生成').split('\n').filter(Boolean);
-  const line = lines[idx] || lines[0] || '请输入文案';
-  ctx.fillStyle = fg;
-  ctx.font = `bold ${Math.round(W/14)}px ${font}`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const wrapped = wrapText(ctx, line, W * .82);
-  const lh = Math.round(W / 14) * 1.35;
-  const startY = H/2 - (wrapped.length-1)*lh/2;
-  wrapped.forEach((l, i) => { ctx.fillText(l, W/2, startY + i*lh); });
-
-  // subtitle bar
-  if ($('#vSub') && $('#vSub').checked) {
-    ctx.fillStyle = 'rgba(0,0,0,.45)';
-    ctx.fillRect(0, H - 68, W, 68);
-    ctx.fillStyle = accent;
-    ctx.fillRect(20, H - 58, 4, 46);
-    ctx.fillStyle = '#fff';
-    ctx.font = `${Math.round(W/22)}px ${font}`;
-    ctx.textAlign = 'left';
-    const sub = line.length > 22 ? line.slice(0, 22) + '…' : line;
-    ctx.fillText(sub, 36, H - 30);
+  ctx.strokeStyle = colorAlpha(s.fg, isLight ? .055 : .07);
+  ctx.lineWidth = Math.max(1, scale * .6);
+  for (let x = -W; x < W * 2; x += W / 7) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H * .22, H); ctx.stroke();
   }
 
-  // frame number
-  ctx.fillStyle = fg;
-  ctx.globalAlpha = .4;
-  ctx.font = `12px monospace`;
-  ctx.textAlign = 'right';
-  ctx.fillText(`${idx+1}/${lines.length||1}`, W - 12, 20);
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = colorAlpha(s.fg, isLight ? .07 : .06);
+  ctx.font = `800 ${Math.round(118 * scale)}px ${s.font}`;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.fillText(String(idx + 1).padStart(2, '0'), W - 18 * scale, 55 * scale);
+
+  const pillX = 24 * scale, pillY = 28 * scale, pillW = 128 * scale, pillH = 28 * scale;
+  ctx.fillStyle = isLight ? 'rgba(255,255,255,.68)' : 'rgba(255,255,255,.10)';
+  roundBox(ctx, pillX, pillY, pillW, pillH, pillH / 2); ctx.fill();
+  ctx.fillStyle = s.accent;
+  ctx.beginPath(); ctx.arc(pillX + 15 * scale, pillY + pillH / 2, 3 * scale, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = s.fg;
+  ctx.font = `700 ${Math.round(9.5 * scale)}px sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(s.label, pillX + 25 * scale, pillY + pillH / 2 + .5 * scale);
+
+  const enter = easeOut(sceneProgress * 1.8);
+  const exit = sceneProgress > .84 ? Math.max(0, 1 - (sceneProgress - .84) / .16) : 1;
+  const alpha = Math.min(1, enter) * exit;
+  const moveY = (1 - enter) * 28 * scale - (1 - exit) * 18 * scale;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(0, moveY);
+  const fontSize = Math.round(W / (line.length > 34 ? 16.5 : line.length > 22 ? 14.6 : 12.8));
+  ctx.font = `800 ${fontSize}px ${s.font}`;
+  const wrapped = wrapText(ctx, line, W * .78);
+  const lineHeight = fontSize * 1.32;
+  const blockY = H * .39;
+  ctx.fillStyle = s.accent;
+  roundBox(ctx, W * .11, blockY - 30 * scale, 42 * scale, 5 * scale, 3 * scale); ctx.fill();
+  ctx.fillStyle = s.fg;
+  ctx.shadowColor = isLight ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.30)';
+  ctx.shadowBlur = 18 * scale;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  wrapped.forEach((part, i) => ctx.fillText(part, W * .11, blockY + i * lineHeight));
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  const captionY = H - 104 * scale;
+  if (showSub) {
+    ctx.fillStyle = isLight ? 'rgba(255,255,255,.74)' : 'rgba(5,8,18,.52)';
+    roundBox(ctx, 22 * scale, captionY, W - 44 * scale, 54 * scale, 14 * scale); ctx.fill();
+    ctx.fillStyle = s.accent;
+    roundBox(ctx, 33 * scale, captionY + 13 * scale, 4 * scale, 28 * scale, 2 * scale); ctx.fill();
+    ctx.fillStyle = s.fg;
+    ctx.font = `600 ${Math.round(12.5 * scale)}px ${s.font}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const sub = line.length > 24 ? line.slice(0, 24) + '…' : line;
+    ctx.fillText(sub, 47 * scale, captionY + 27 * scale);
+  }
+
+  const gap = 4 * scale;
+  const barW = (W - 44 * scale - gap * Math.max(0, total - 1)) / Math.max(1, total);
+  for (let i = 0; i < total; i++) {
+    ctx.fillStyle = i < idx ? colorAlpha(s.accent, .55) : i === idx ? s.accent : colorAlpha(s.fg, .16);
+    roundBox(ctx, 22 * scale + i * (barW + gap), H - 26 * scale, barW, 3 * scale, 2 * scale); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFrame(idx){
+  const c = $('#vPreview'); if (!c) return;
+  const lines = (videoState.text || '输入文案开始生成').split('\n').filter(Boolean);
+  const line = lines[idx] || lines[0] || '请输入文案';
+  drawVideoScene(c.getContext('2d'), c.width, c.height, line, idx, lines.length || 1, 1, !!($('#vSub') && $('#vSub').checked));
+}
+
+function createAmbientTrack(duration, mode){
+  if (mode === 'none') return null;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  const ac = new AudioCtx();
+  const dest = ac.createMediaStreamDestination();
+  const filter = ac.createBiquadFilter();
+  const master = ac.createGain();
+  filter.type = 'lowpass';
+  filter.frequency.value = mode === 'pulse' ? 1800 : 1200;
+  master.gain.value = mode === 'pulse' ? .32 : .24;
+  filter.connect(master); master.connect(dest);
+  const start = ac.currentTime + .05;
+  const roots = mode === 'pulse' ? [220, 261.63, 196, 246.94] : [174.61, 220, 196, 164.81];
+  const part = Math.max(1.4, duration / roots.length);
+
+  roots.forEach((root, i) => {
+    const t0 = start + i * part;
+    const t1 = Math.min(start + duration, t0 + part + .15);
+    [1, 1.25, 1.5].forEach((ratio, voice) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = voice === 0 ? 'sine' : 'triangle';
+      osc.frequency.value = root * ratio;
+      osc.detune.value = voice === 2 ? -5 : voice === 1 ? 4 : 0;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(voice === 0 ? .026 : .012, t0 + .28);
+      gain.gain.setValueAtTime(voice === 0 ? .026 : .012, Math.max(t0 + .3, t1 - .55));
+      gain.gain.exponentialRampToValueAtTime(.0001, t1);
+      osc.connect(gain); gain.connect(filter);
+      osc.start(t0); osc.stop(t1 + .03);
+    });
+  });
+
+  if (mode === 'pulse') {
+    for (let t = start; t < start + duration; t += .72) {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(92, t);
+      osc.frequency.exponentialRampToValueAtTime(48, t + .16);
+      gain.gain.setValueAtTime(.05, t);
+      gain.gain.exponentialRampToValueAtTime(.0001, t + .18);
+      osc.connect(gain); gain.connect(filter);
+      osc.start(t); osc.stop(t + .2);
+    }
+  }
+  ac.resume().catch(() => {});
+  return {context:ac, tracks:dest.stream.getAudioTracks()};
 }
 
 async function renderVideo(){
@@ -199,25 +305,11 @@ async function renderVideo(){
 
   const stream = c.captureStream(30);
   let audioTracks = [];
-  if ($('#vBgm').checked) {
-    try {
-      const ac = new (window.AudioContext || window.webkitAudioContext)();
-      const dest = ac.createMediaStreamDestination();
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.connect(gain); gain.connect(dest);
-      gain.gain.value = .03;
-      const notes = [261.63, 329.63, 392, 329.63, 261.63, 196, 261.63, 329.63];
-      let nIdx = 0, nTime = 0;
-      osc.frequency.setValueAtTime(notes[0], 0);
-      const beat = dur / notes.length;
-      for (let i = 1; i < notes.length; i++) {
-        osc.frequency.setValueAtTime(notes[i % notes.length], i * beat);
-      }
-      osc.start(); osc.stop(ac.currentTime + dur);
-      audioTracks = dest.stream.getAudioTracks();
-    } catch(e) { console.warn('Audio failed', e); }
-  }
+  let audioSession = null;
+  try {
+    audioSession = createAmbientTrack(dur, $('#vBgm').value);
+    audioTracks = audioSession ? audioSession.tracks : [];
+  } catch(e) { console.warn('Audio failed', e); }
   const tracks = [...stream.getVideoTracks(), ...audioTracks];
   const ms = new MediaStream(tracks);
 
@@ -232,7 +324,11 @@ async function renderVideo(){
   mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
   mr.onstop = () => {
     const blob = new Blob(chunks, { type: 'video/webm' });
+    ms.getTracks().forEach(t => t.stop());
+    if (audioSession) audioSession.context.close().catch(() => {});
+    if (videoState.resultUrl) URL.revokeObjectURL(videoState.resultUrl);
     const url = URL.createObjectURL(blob);
+    videoState.resultUrl = url;
     const card = $('#vResultCard');
     card.style.display = 'block';
     $('#vResultBody').innerHTML = `
@@ -243,13 +339,20 @@ async function renderVideo(){
           <p style="font-size:13px;margin-bottom:8px"><b>时长：</b>${dur}秒</p>
           <p style="font-size:13px;margin-bottom:8px"><b>分辨率：</b>${W}×${H}</p>
           <p style="font-size:13px;margin-bottom:12px"><b>大小：</b>${(blob.size/1024/1024).toFixed(1)} MB</p>
-          <a href="${url}" download="超级员工_视频_${Date.now()}.webm" class="btn primary sm">⬇ 下载视频</a>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="${url}" download="超级员工_视频_${Date.now()}.webm" class="btn primary sm">⬇ 下载视频</a>
+            <button class="btn ghost sm" id="btnSaveVideoText">📚 保存文案</button>
+          </div>
         </div>
       </div>`;
+    $('#btnSaveVideoText').onclick = () => saveTextAsset({cat:'视频文案', title:S.videoDraft?.title || smartTitle(text), content:text, source:'video'});
     videoState.rendering = false;
     btn.disabled = false; btn.textContent = '🎬 重新生成';
     bump('video', 1); S.stats.minutes += 5; save();
     logAct('🎬', `生成视频「${lines[0].slice(0,14)}…」（${dur}s）`);
+    const waiting = S.tasks.find(t => t.type === 'handoff' && t.status === 'ready' && t.ref === S.videoDraft?.id);
+    if (waiting) { waiting.status = 'done'; waiting.detail = '已生成视频'; save(); }
+    addTask('video', `生成视频：${S.videoDraft?.title || smartTitle(lines[0])}`, `${dur} 秒 · ${W}×${H}`);
     toast('视频生成完成！');
   };
 
@@ -265,45 +368,7 @@ async function renderVideo(){
     curLine = Math.min(lines.length - 1, Math.floor(elapsed / perLine));
     const localT = (elapsed - curLine * perLine) / perLine;
 
-    // bg
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, bg); g.addColorStop(1, bg + '88');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    // shapes
-    ctx.fillStyle = accent; ctx.globalAlpha = .07;
-    ctx.beginPath(); ctx.arc(W*.8, H*.15, W*.5, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(W*.2, H*.85, W*.4, 0, 7); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = accent; ctx.fillRect(0, 0, W, 6);
-    // text
-    ctx.fillStyle = fg;
-    ctx.font = `bold ${Math.round(W/14)}px ${font}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const wrapped = wrapText(ctx, lines[curLine], W * .82);
-    const lh = Math.round(W/14) * 1.35;
-    const startY = H/2 - (wrapped.length-1)*lh/2;
-    // 逐字渐入
-    wrapped.forEach((l, i) => {
-      const charCount = l.length;
-      const visible = Math.floor(charCount * Math.min(1, localT * 2));
-      const shown = l.slice(0, Math.max(1, visible));
-      ctx.fillText(shown, W/2, startY + i * lh);
-    });
-    // progress bar
-    ctx.fillStyle = accent; ctx.globalAlpha = .3;
-    ctx.fillRect(0, H - 4, W * (elapsed / dur), 4);
-    ctx.globalAlpha = 1;
-    // sub
-    if (showSub) {
-      ctx.fillStyle = 'rgba(0,0,0,.45)';
-      ctx.fillRect(0, H - 72, W, 72);
-      ctx.fillStyle = accent; ctx.fillRect(22, H - 60, 4, 48);
-      ctx.fillStyle = '#fff';
-      ctx.font = `${Math.round(W/22)}px ${font}`;
-      ctx.textAlign = 'left';
-      const sub = lines[curLine].length > 22 ? lines[curLine].slice(0,22) + '…' : lines[curLine];
-      ctx.fillText(sub, 38, H - 30);
-    }
+    drawVideoScene(ctx, W, H, lines[curLine], curLine, lines.length, localT, showSub);
     // update mini preview
     drawFrame(curLine);
     updateFrameInfo();
@@ -496,6 +561,31 @@ function custModal(id){
 }
 
 /* ================= 素材库 ================= */
+function imageForStorage(file){
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type).startsWith('image/')) { reject(new Error('不是图片文件')); return; }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('读取图片失败'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('图片格式不受支持'));
+      img.onload = () => {
+        const maxSide = 1280;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        resolve(c.toDataURL(type, .82));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderAsset(){
   const pg = $('#pg-asset');
   const cats = [...new Set(S.assetsText.map(a => a.cat))];
@@ -539,6 +629,8 @@ function renderAsset(){
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0">
           <button class="ibtn" data-copy="${a.id}" title="复制内容">📋</button>
+          <button class="ibtn" data-video="${a.id}" title="做成视频">🎬</button>
+          <button class="ibtn" data-edit="${a.id}" title="编辑">✏️</button>
           <button class="ibtn" data-del="${a.id}" title="删除">🗑</button>
         </div>
       </div>`).join('') : '<div class="empty">还没有文案素材</div>';
@@ -566,19 +658,19 @@ function renderAsset(){
   });
   $('#btnNewAsset').onclick = () => assetModal();
   $('#btnUpImg').onclick = () => $('#asImgInput').click();
-  $('#asImgInput').onchange = e => {
-    const files = [...e.target.files];
+  $('#asImgInput').onchange = async e => {
+    const files = [...e.target.files].slice(0, 6);
     if (!files.length) return;
     let done = 0;
-    files.forEach(f => {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        S.assetsImg.push({id: uid(), title: f.name.slice(0, 20), data: ev.target.result});
+    for (const f of files) {
+      try {
+        const data = await imageForStorage(f);
+        S.assetsImg.push({id: uid(), title:f.name.slice(0, 20), data, createdAt:new Date().toISOString()});
         done++;
-        if (done === files.length) { save(); drawImgs(); toast(`已上传 ${files.length} 张图片`); }
-      };
-      reader.readAsDataURL(f);
-    });
+      } catch(err) { console.warn(err); }
+    }
+    save(); drawImgs();
+    toast(done ? `已压缩并保存 ${done} 张图片` : '图片读取失败', done ? '' : 'warn');
     e.target.value = '';
   };
   $('#asTextList').onclick = e => {
@@ -586,6 +678,11 @@ function renderAsset(){
     if (b.dataset.copy) {
       const a = S.assetsText.find(x => x.id === b.dataset.copy);
       if (a) copyText(a.content);
+    } else if (b.dataset.video) {
+      const a = S.assetsText.find(x => x.id === b.dataset.video);
+      if (a) sendToVideo(a.content, a.title, 'asset');
+    } else if (b.dataset.edit) {
+      assetModal(b.dataset.edit);
     } else if (b.dataset.del) {
       confirmBox('删除该文案？', () => {
         S.assetsText = S.assetsText.filter(x => x.id !== b.dataset.del);
@@ -617,7 +714,7 @@ function assetModal(id){
     const content = $('#asContent').value.trim();
     if (!title || !content) { toast('请填写标题和内容', 'warn'); return; }
     if (a) { Object.assign(a, {cat, title, content}); toast('已保存'); }
-    else { S.assetsText.push({id: uid(), cat, title, content}); logAct('📚', `添加文案「${title}」`); toast('已添加'); }
+    else { S.assetsText.unshift({id: uid(), cat, title, content, source:'manual', createdAt:new Date().toISOString()}); logAct('📚', `添加文案「${title}」`); addTask('asset', `添加素材：${title}`, cat); toast('已添加'); }
     save(); closeModal(); renderAsset();
   };
 }
@@ -650,7 +747,8 @@ function renderSet(){
             · 通义千问 — <code>https://dashscope.aliyuncs.com/compatible-mode/v1</code> + <code>qwen-plus</code><br>
             · Kimi — <code>https://api.moonshot.cn/v1</code> + <code>moonshot-v1-8k</code><br>
             · OpenAI — <code>https://api.openai.com/v1</code> + <code>gpt-4o-mini</code><br>
-            · 本地Ollama — <code>http://localhost:11434/v1</code> + <code>llama3.1</code>
+            · 本地Ollama — <code>http://localhost:11434/v1</code> + <code>llama3.1</code><br>
+            <b>Demo 提醒：</b>API Key 只保存在当前浏览器，导出备份时会自动排除；请使用可随时撤销的测试 Key。
           </div>
         </div>
       </div>
@@ -674,9 +772,9 @@ function renderSet(){
           <div class="card-b">
             <div style="font-size:13px;line-height:2;color:#4b5162">
               <b>超级员工 · AI智能体工作台</b><br>
-              版本：v1.0 便携版<br>
+              版本：v${APP_VERSION} 可用 Demo<br>
               架构：纯前端 HTML + JS，零后端依赖<br>
-              数据：100% 本地存储，断网可用<br>
+              数据：业务数据保存在本机；真实 AI 模式会把对话发送到你配置的模型服务<br>
               部署：拷贝3个文件到任何电脑，双击 <code>index.html</code> 即用
             </div>
           </div>
@@ -715,13 +813,15 @@ function renderSet(){
     btn.disabled = false; btn.textContent = '🧪 测试连接';
   };
   $('#btnExport').onclick = () => {
-    const data = JSON.stringify(S, null, 2);
+    const exported = JSON.parse(JSON.stringify(S));
+    if (exported.settings) exported.settings.apiKey = '';
+    const data = JSON.stringify(exported, null, 2);
     const blob = new Blob([data], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = '超级员工_数据备份_' + todayStr().replace(/\//g,'') + '.json';
     a.click();
-    toast('已导出备份文件');
+    toast('已导出备份（API Key 未包含）');
   };
   $('#btnImport').onclick = () => $('#importFile').click();
   $('#importFile').onchange = e => {
@@ -730,7 +830,8 @@ function renderSet(){
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        S = Object.assign(defaultState(), data);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('INVALID_BACKUP');
+        S = normalizeState(data);
         save(); toast('导入成功！页面将刷新'); setTimeout(() => location.reload(), 800);
       } catch(err) { toast('文件格式错误', 'warn'); }
     };

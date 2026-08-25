@@ -9,6 +9,7 @@ const fmtNum = n => n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n);
 const nowTime = () => new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
 const todayStr = () => new Date().toLocaleDateString('zh-CN');
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const APP_VERSION = '0.2.0';
 
 function copyText(t){
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -90,19 +91,34 @@ const PRESET_FLOWS = [
 
 function defaultState(){
   return {
+    version: 2,
     settings:{apiBase:'', apiKey:'', model:'gpt-4o-mini', demoOnly:false},
     agents:[], flows:[], accounts:[], customers:[],
     assetsText:[], assetsImg:[],
     stats:{msg:0, video:0, run:0, minutes:0},
-    activities:[], chats:{}, seeded:false
+    activities:[], tasks:[], chats:{}, videoDraft:null, seeded:false
   };
 }
 let S = defaultState();
 
+function normalizeState(data){
+  const defaults = defaultState();
+  const src = data && typeof data === 'object' ? data : {};
+  const next = Object.assign({}, defaults, src);
+  next.settings = Object.assign({}, defaults.settings, src.settings || {});
+  next.stats = Object.assign({}, defaults.stats, src.stats || {});
+  ['agents','flows','accounts','customers','assetsText','assetsImg','activities','tasks'].forEach(k => {
+    if (!Array.isArray(next[k])) next[k] = [];
+  });
+  if (!next.chats || typeof next.chats !== 'object' || Array.isArray(next.chats)) next.chats = {};
+  next.version = 2;
+  return next;
+}
+
 function load(){
   try {
     const raw = localStorage.getItem(DATA_KEY);
-    if (raw) S = Object.assign(defaultState(), JSON.parse(raw));
+    if (raw) S = normalizeState(JSON.parse(raw));
   } catch(e) { console.warn('读取本地数据失败', e); }
 }
 function save(){
@@ -115,6 +131,59 @@ function logAct(ico, txt){
   save();
 }
 function bump(k, n){ S.stats[k] = (S.stats[k] || 0) + n; save(); }
+
+function addTask(type, title, detail = '', status = 'done', ref = ''){
+  const task = {id:uid(), type, title, detail, status, ref, time:todayStr() + ' ' + nowTime()};
+  S.tasks.unshift(task);
+  S.tasks = S.tasks.slice(0, 50);
+  save();
+  return task;
+}
+
+function smartTitle(text, fallback = '未命名内容'){
+  const clean = String(text || '').replace(/<[^>]+>/g, ' ').replace(/🎭\s*演示模式\s*·\s*在「系统设置」接入AI后即为真实智能回答/g, ' ').replace(/[#*_`>\[\]]/g, '').replace(/\s+/g, ' ').trim();
+  return clean ? clean.slice(0, 28) + (clean.length > 28 ? '…' : '') : fallback;
+}
+
+function saveTextAsset({cat = 'AI生成', title = '', content = '', source = 'manual'} = {}){
+  const clean = String(content || '').trim();
+  if (!clean) { toast('没有可保存的内容', 'warn'); return null; }
+  const finalTitle = String(title || '').trim() || smartTitle(clean);
+  const duplicate = S.assetsText.find(a => a.content === clean && a.title === finalTitle);
+  if (duplicate) { toast('这份内容已在素材库中'); return duplicate; }
+  const item = {id:uid(), cat, title:finalTitle, content:clean, source, createdAt:new Date().toISOString()};
+  S.assetsText.unshift(item);
+  addTask('asset', `保存素材：${finalTitle}`, cat);
+  logAct('📚', `保存文案「${finalTitle}」`);
+  toast('已保存到素材库');
+  return item;
+}
+
+function toVideoScript(content){
+  const raw = String(content || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/🎭\s*演示模式\s*·\s*在「系统设置」接入AI后即为真实智能回答/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*(?:#{1,6}\s*|[-*>•]\s*|\d+[.、]\s*)/gm, '')
+    .replace(/\*\*/g, '')
+    .trim();
+  if (!raw) return '';
+  let lines = raw.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (lines.length < 2) lines = raw.split(/(?<=[。！？!?；;])/).map(s => s.trim()).filter(Boolean);
+  return lines.slice(0, 10).map(line => line.length > 52 ? line.slice(0, 52) + '…' : line).join('\n');
+}
+
+function sendToVideo(content, title = '', source = 'manual'){
+  const script = toVideoScript(content);
+  if (!script) { toast('没有可用于视频的文案', 'warn'); return; }
+  const finalTitle = String(title || '').trim() || smartTitle(script, '视频文案');
+  S.videoDraft = {id:uid(), title:finalTitle, content:script, source, createdAt:new Date().toISOString()};
+  addTask('handoff', `送入视频工厂：${finalTitle}`, '等待生成', 'ready', S.videoDraft.id);
+  logAct('🎬', `已将「${finalTitle}」送入视频工厂`);
+  closeModal();
+  go('video');
+  toast('文案已带入视频工厂');
+}
 
 function seed(){
   if (S.seeded) return;
@@ -146,11 +215,15 @@ async function callLLMOnce(messages, stream, opt){
   const key = String(S.settings.apiKey || '').trim();
   const model = String(S.settings.model || '').trim() || 'gpt-4o-mini';
   const body = JSON.stringify({model, messages, stream, max_tokens: opt.maxTokens || 2048});
-  const res = await fetch(base + '/chat/completions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + key},
-    body
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+  try {
+    const res = await fetch(base + '/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + key},
+      body,
+      signal:controller.signal
+    });
   if (!res.ok) {
     let t = '';
     try { t = (await res.text()).slice(0, 160); } catch(e) {}
@@ -180,10 +253,16 @@ async function callLLMOnce(messages, stream, opt){
     if (full) return full;
     throw new Error('STREAM_EMPTY');
   }
-  const j = await res.json();
-  const t = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
-  if (opt.onDelta && t) opt.onDelta(t);
-  return t;
+    const j = await res.json();
+    const t = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+    if (opt.onDelta && t) opt.onDelta(t);
+    return t;
+  } catch(e) {
+    if (e && e.name === 'AbortError') throw new Error('请求超过90秒，已自动停止');
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 async function callLLM(messages, opt = {}){
   try { return await callLLMOnce(messages, true, opt); }
@@ -325,6 +404,7 @@ function demoStep(stepName, input){
 /* ================= 简易 Markdown 渲染 ================= */
 function md(s){
   let h = esc(s);
+  h = h.replace(/&lt;span class=&quot;demo-tag&quot;&gt;(.*?)&lt;\/span&gt;/g, '<span class="demo-tag">$1</span>');
   h = h.replace(/^###\s?(.+)$/gm, '<div class="mh">$1</div>')
        .replace(/^##\s?(.+)$/gm, '<div class="mh big">$1</div>')
        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
@@ -382,7 +462,21 @@ function renderDash(){
     ['⏱️','累计省时', fmtNum(st.minutes) + ' 分钟','#8b5cf6','#d946ef'],
   ];
   const acts = S.activities.slice(0, 8);
+  const tasks = S.tasks.slice(0, 6);
+  const taskIcons = {chat:'💬', flow:'⚙️', asset:'📚', handoff:'➡️', video:'🎬'};
   pg.innerHTML = `
+    <div class="pipeline-hero">
+      <div class="msg-body">
+        <span class="bdg b-primary">v${APP_VERSION} · 可用 Demo</span>
+        <h2>从一个想法，到一条可下载的视频</h2>
+        <p>用 AI 员工或工作流生成内容，保存为素材，再一键送入视频工厂。</p>
+      </div>
+      <div class="pipeline-actions">
+        <button class="btn primary" data-go="chat">① 生成内容</button>
+        <button class="btn ghost" data-go="asset">② 查看素材</button>
+        <button class="btn ghost" data-go="video">③ 制作视频</button>
+      </div>
+    </div>
     <div class="grid-stats">
       ${cards.map(c => `<div class="stat-card">
         <div class="stat-ico" style="background:linear-gradient(135deg,${c[3]},${c[4]})">${c[0]}</div>
@@ -405,13 +499,14 @@ function renderDash(){
           </div>
         </div>
         <div class="card">
-          <div class="card-h"><b>📋 最近动态</b></div>
+          <div class="card-h"><b>🧭 最近任务</b><span class="bdg b-gray">${S.tasks.length} 条</span></div>
           <div class="card-b" style="padding-top:6px">
-            ${acts.length ? acts.map(a => `
-              <div class="act-item">
-                <div class="ico">${a.ico}</div>
-                <div><div class="t">${esc(a.txt)}</div><div class="tm">${a.time}</div></div>
-              </div>`).join('') : '<div class="empty" style="padding:26px">暂无动态，去右边开始第一项工作吧 →</div>'}
+            ${tasks.length ? tasks.map(t => `
+              <div class="task-item">
+                <div class="ico">${taskIcons[t.type] || '✓'}</div>
+                <div class="task-meta"><div class="t">${esc(t.title)}</div><div class="tm">${esc(t.detail || '')} · ${esc(t.time)}</div></div>
+                <span class="bdg ${t.status === 'ready' ? 'b-warn' : 'b-ok'}">${t.status === 'ready' ? '待处理' : '已完成'}</span>
+              </div>`).join('') : '<div class="empty" style="padding:26px">暂无任务，先生成第一份内容吧</div>'}
           </div>
         </div>
       </div>
@@ -419,24 +514,22 @@ function renderDash(){
         <div class="card" style="margin-bottom:16px">
           <div class="card-h"><b>🚀 上手指南</b></div>
           <div class="card-b" style="padding-top:8px">
-            <div class="guide-step"><i>1</i><p><b>先体验：</b>演示模式开箱即用，直接去「智能体对话」「视频工厂」玩起来</p></div>
-            <div class="guide-step"><i>2</i><p><b>再接AI：</b>「系统设置」填入任意 OpenAI 兼容接口（DeepSeek / 通义 / Kimi / 本地Ollama），全部能力瞬间升级为真实AI</p></div>
-            <div class="guide-step"><i>3</i><p><b>随便搬：</b>整个系统就是<b>一个HTML文件</b>，拷到U盘、微信传文件、发邮件都行，任何电脑双击即用</p></div>
+            <div class="guide-step"><i>1</i><p><b>生成：</b>让 AI 员工写脚本，或运行「爆款内容流水线」</p></div>
+            <div class="guide-step"><i>2</i><p><b>沉淀：</b>在结果下方点「保存素材」，以后可以继续复用</p></div>
+            <div class="guide-step"><i>3</i><p><b>出片：</b>点「做成视频」，文案会自动带入视频工厂</p></div>
           </div>
         </div>
         <div class="card">
-          <div class="card-h"><b>🔒 数据安全承诺</b></div>
-          <div class="card-b">
-            <p style="font-size:13px;line-height:2;color:#4b5162">
-              ✅ 所有数据仅保存在<b>本机浏览器</b>，不经过任何服务器<br>
-              ✅ 换电脑用「设置 → 导出备份」打包带走<br>
-              ✅ 断网也能用（视频生成、素材库、客户管理）
-            </p>
+          <div class="card-h"><b>📋 最近动态</b></div>
+          <div class="card-b" style="padding-top:6px">
+            ${acts.length ? acts.slice(0,5).map(a => `
+              <div class="act-item"><div class="ico">${a.ico}</div><div><div class="t">${esc(a.txt)}</div><div class="tm">${a.time}</div></div></div>
+            `).join('') : '<div class="empty" style="padding:26px">还没有动态</div>'}
           </div>
         </div>
       </div>
     </div>`;
-  pg.querySelectorAll('.qa-btn').forEach(b => b.onclick = () => go(b.dataset.go));
+  pg.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 }
 
 /* ================= 智能体对话 ================= */
@@ -536,11 +629,28 @@ function renderMsgs(){
     });
     return;
   }
-  msgs.innerHTML = chat.messages.map(m => `
+  msgs.innerHTML = chat.messages.map((m, i) => `
     <div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
       <div class="ava">${m.role === 'user' ? '我' : (agent.emoji || '🤖')}</div>
-      <div class="bubble">${m.role === 'user' ? esc(m.content).replace(/\n/g,'<br>') : md(m.content)}</div>
+      <div>
+        <div class="bubble">${m.role === 'user' ? esc(m.content).replace(/\n/g,'<br>') : md(m.content)}</div>
+        ${m.role === 'assistant' && m.content ? `<div class="msg-tools">
+          <button data-chat-action="copy" data-mi="${i}">复制</button>
+          <button data-chat-action="save" data-mi="${i}">保存素材</button>
+          <button data-chat-action="video" data-mi="${i}">做成视频</button>
+        </div>` : ''}
+      </div>
     </div>`).join('');
+  msgs.onclick = e => {
+    const b = e.target.closest('[data-chat-action]');
+    if (!b) return;
+    const m = chat.messages[+b.dataset.mi];
+    if (!m || m.role !== 'assistant') return;
+    const title = `${agent.name} · ${smartTitle(m.content)}`;
+    if (b.dataset.chatAction === 'copy') copyText(m.content);
+    if (b.dataset.chatAction === 'save') saveTextAsset({cat:'AI生成', title, content:m.content, source:'chat'});
+    if (b.dataset.chatAction === 'video') sendToVideo(m.content, title, 'chat');
+  };
   msgs.scrollTop = msgs.scrollHeight;
 }
 
@@ -605,8 +715,10 @@ async function sendMsg(){
   if (!S.stats.minutes) S.stats.minutes = 0;
   S.stats.minutes += 2; save();
   logAct('💬', `与「${agent.name}」对话：${text.slice(0, 18)}${text.length > 18 ? '…' : ''}${usedDemo ? '（演示）' : ''}`);
+  addTask('chat', `${agent.name}：${smartTitle(text)}`, usedDemo ? '演示回复' : '真实 AI 回复');
   chatBusy = false;
   $('#btnSend').disabled = false;
+  renderMsgs();
   input.focus();
 }
 
@@ -784,8 +896,16 @@ async function runFlowModal(id){
     bump('run', 1);
     S.stats.minutes += 8; save();
     logAct('⚙️', `运行工作流「${f.name}」：${topic.slice(0, 16)}`);
-    $('#rfRun').outerHTML = `<button class="btn primary block" id="rfCopy" style="margin-bottom:14px">📋 复制全部结果</button>`;
-    $('#rfCopy').onclick = () => copyText(outputs.join('\n\n' + '─'.repeat(20) + '\n\n'));
+    const combined = outputs.join('\n\n' + '─'.repeat(20) + '\n\n');
+    addTask('flow', `${f.name}：${smartTitle(topic)}`, `${f.steps.length} 个步骤`);
+    $('#rfRun').outerHTML = `<div class="result-actions" id="rfActions">
+      <button class="btn ghost" id="rfCopy">📋 复制结果</button>
+      <button class="btn ghost" id="rfSave">📚 保存素材</button>
+      <button class="btn primary" id="rfVideo">🎬 做成视频</button>
+    </div>`;
+    $('#rfCopy').onclick = () => copyText(combined);
+    $('#rfSave').onclick = () => saveTextAsset({cat:'工作流结果', title:`${f.name} · ${smartTitle(topic)}`, content:combined, source:'workflow'});
+    $('#rfVideo').onclick = () => sendToVideo(prev, `${f.name} · ${smartTitle(topic)}`, 'workflow');
     running = false;
   }
 }

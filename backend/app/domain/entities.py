@@ -25,6 +25,18 @@ class WorkflowRunStatus(str, Enum):
     FAILED = "failed"
 
 
+class AssetStatus(str, Enum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class HandoffStatus(str, Enum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    DONE = "done"
+    FAILED = "failed"
+
+
 @dataclass(frozen=True, slots=True)
 class Employee:
     id: str
@@ -114,3 +126,53 @@ class WorkflowRun:
     output: str
     created_at: str
     completed_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class Asset:
+    id: str
+    source_type: str
+    source_id: str
+    source_name: str
+    kind: str
+    title: str
+    content: str
+    tags: list[str]
+    status: AssetStatus
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class AssetHandoff:
+    id: str
+    asset_id: str
+    asset_title: str
+    target: str
+    status: HandoffStatus
+    note: str
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class TaskCenterStep:
+    order: int
+    name: str
+    status: StepStatus
+    output: str
+
+
+@dataclass(frozen=True, slots=True)
+class TaskCenterItem:
+    id: str
+    source_type: str
+    definition_id: str
+    title: str
+    description: str
+    owner: str
+    status: str
+    steps: list[TaskCenterStep]
+    output: str
+    asset_ids: list[str]
+    created_at: str
+    updated_at: str

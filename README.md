@@ -23,6 +23,9 @@
 - 视频同款系统壳、总控首页和完整业务模块导航。
 - React + TypeScript 员工工作台。
 - 可创建、删除、运行并查看历史结果的自动工作流。
+- 统一汇总 Agent 任务与工作流运行的任务中心。
+- 自动沉淀、搜索、编辑和归档交付成果的资产中心。
+- 可追踪的创意视频、剪辑和发布跨模块流转队列。
 - FastAPI REST API 与自动生成的接口文档。
 - SQLite 持久化员工、任务、工作流、步骤、运行记录和成果。
 - 清晰的路由、业务服务、仓储和执行器分层。
@@ -39,7 +42,7 @@ tests/      v0.2 静态原型的冒烟测试
 index.html  可立即打开的旧版静态原型
 ```
 
-完整说明见 [视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md) 和 [学习指南](docs/LEARNING_GUIDE.md)。逐功能学习可以从 [第 1 课](docs/LESSON_01_REQUEST_FLOW.md) 和 [第 2 课](docs/LESSON_02_WORKFLOW.md) 开始。
+完整说明见 [视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md) 和 [学习指南](docs/LEARNING_GUIDE.md)。逐功能学习可以从 [第 1 课](docs/LESSON_01_REQUEST_FLOW.md)、[第 2 课](docs/LESSON_02_WORKFLOW.md) 和 [第 3 课](docs/LESSON_03_TASKS_AND_ASSETS.md) 开始。
 
 ## 启动正式版
 
@@ -113,8 +116,8 @@ node tests\smoke.mjs
 
 ## 下一步
 
-1. 完成任务中心与成果资产，让工作流输出可以跨模块流转。
+1. 完成 M3 内容生产台，让资产真正进入脚本、素材和视频任务。
 2. 用服务端模型适配器替换演示执行器，密钥不进入前端。
 3. 增加后台任务队列、实时进度、超时和重试。
-4. 让内容员工可以把成果交给素材、图片和视频技能。
+4. 增加账号矩阵和发布前人工确认。
 5. 增加员工配置、工具权限、记忆和成本审计。

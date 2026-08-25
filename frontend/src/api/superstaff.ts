@@ -1,8 +1,13 @@
 import type {
+  AssetHandoff,
+  AssetHandoffTarget,
+  AssetRecord,
   CreateJobInput,
   CreateWorkflowInput,
   Employee,
   Job,
+  TaskCenterItem,
+  UpdateAssetInput,
   Workflow,
   WorkflowRun,
 } from '../types/contracts'
@@ -48,5 +53,22 @@ export const superstaffApi = {
     request<WorkflowRun>(`/workflows/${workflowId}/runs`, {
       method: 'POST',
       body: JSON.stringify({ input }),
+    }),
+  listTasks: () => request<TaskCenterItem[]>('/tasks'),
+  listAssets: () => request<AssetRecord[]>('/assets'),
+  getAsset: (assetId: string) => request<AssetRecord>(`/assets/${assetId}`),
+  updateAsset: (assetId: string, input: UpdateAssetInput) =>
+    request<AssetRecord>(`/assets/${assetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  listAssetHandoffs: (assetId?: string) =>
+    request<AssetHandoff[]>(
+      `/asset-handoffs${assetId ? `?asset_id=${encodeURIComponent(assetId)}` : ''}`,
+    ),
+  createAssetHandoff: (assetId: string, target: AssetHandoffTarget, note = '') =>
+    request<AssetHandoff>(`/assets/${assetId}/handoffs`, {
+      method: 'POST',
+      body: JSON.stringify({ target, note }),
     }),
 }

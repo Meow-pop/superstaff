@@ -148,3 +148,97 @@ def test_workflow_input_validation(client: TestClient):
         "/api/v1/workflows/workflow-content-engine/runs", json={"input": ""}
     )
     assert response.status_code == 422
+
+
+def test_task_center_unifies_agent_jobs_and_workflow_runs(client: TestClient):
+    job = create_job(client)
+    executed_job = client.post(f"/api/v1/jobs/{job['id']}/run")
+    assert executed_job.status_code == 200
+
+    workflow_run = client.post(
+        "/api/v1/workflows/workflow-content-engine/runs",
+        json={"input": "把超级 AI 员工项目整理成求职作品集介绍"},
+    )
+    assert workflow_run.status_code == 200
+
+    response = client.get("/api/v1/tasks")
+    assert response.status_code == 200
+    tasks = response.json()
+    assert {task["source_type"] for task in tasks} == {
+        "agent_job",
+        "workflow_run",
+    }
+    agent_task = next(task for task in tasks if task["id"] == job["id"])
+    workflow_task = next(
+        task for task in tasks if task["id"] == workflow_run.json()["id"]
+    )
+    assert agent_task["status"] == "review"
+    assert len(agent_task["asset_ids"]) == 1
+    assert workflow_task["status"] == "done"
+    assert len(workflow_task["asset_ids"]) == 1
+
+
+def test_assets_support_search_metadata_and_archive(client: TestClient):
+    job = create_job(client)
+    client.post(f"/api/v1/jobs/{job['id']}/run")
+
+    assets = client.get("/api/v1/assets", params={"query": "首周内容计划"})
+    assert assets.status_code == 200
+    assert len(assets.json()) == 1
+    asset = assets.json()[0]
+    assert asset["source_type"] == "agent_job"
+
+    updated = client.patch(
+        f"/api/v1/assets/{asset['id']}",
+        json={
+            "title": "超级员工首周发布资产",
+            "tags": ["作品集", "内容运营", "作品集"],
+            "status": "archived",
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "超级员工首周发布资产"
+    assert updated.json()["tags"] == ["作品集", "内容运营"]
+    assert updated.json()["status"] == "archived"
+
+    archived = client.get(
+        "/api/v1/assets", params={"asset_status": "archived"}
+    )
+    assert [item["id"] for item in archived.json()] == [asset["id"]]
+
+    blocked_handoff = client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "publisher"},
+    )
+    assert blocked_handoff.status_code == 409
+
+
+def test_asset_handoff_creates_trackable_queue_record(client: TestClient):
+    run = client.post(
+        "/api/v1/workflows/workflow-multi-platform/runs",
+        json={"input": "介绍超级 AI 员工的业务闭环"},
+    )
+    assert run.status_code == 200
+    asset = client.get(
+        "/api/v1/assets", params={"source_type": "workflow_run"}
+    ).json()[0]
+
+    created = client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "creative_video", "note": "生成竖版介绍视频"},
+    )
+    assert created.status_code == 201
+    assert created.json()["status"] == "queued"
+    assert created.json()["asset_id"] == asset["id"]
+
+    stored = client.get(
+        "/api/v1/asset-handoffs", params={"asset_id": asset["id"]}
+    )
+    assert stored.status_code == 200
+    assert stored.json()[0]["target"] == "creative_video"
+
+    invalid = client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "unknown"},
+    )
+    assert invalid.status_code == 422

@@ -98,5 +98,82 @@ class SQLiteDatabase:
 
                 CREATE INDEX IF NOT EXISTS idx_workflow_runs_created_at
                 ON workflow_runs(created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS assets (
+                    id TEXT PRIMARY KEY,
+                    source_type TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    source_name TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    tags_json TEXT NOT NULL DEFAULT '[]',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(source_type, source_id, kind)
+                );
+
+                CREATE TABLE IF NOT EXISTS asset_handoffs (
+                    id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+                    asset_title TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_assets_status_created_at
+                ON assets(status, created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_assets_source
+                ON assets(source_type, source_id);
+
+                CREATE INDEX IF NOT EXISTS idx_asset_handoffs_asset_id
+                ON asset_handoffs(asset_id, created_at DESC);
                 """
             )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO assets
+                (id, source_type, source_id, source_name, kind, title, content,
+                 tags_json, status, created_at, updated_at)
+                SELECT
+                    'asset_legacy_' || artifacts.id,
+                    'agent_job',
+                    artifacts.job_id,
+                    jobs.employee_name,
+                    artifacts.kind,
+                    artifacts.title,
+                    artifacts.content,
+                    '["AI员工"]',
+                    'active',
+                    artifacts.created_at,
+                    artifacts.created_at
+                FROM artifacts
+                JOIN jobs ON jobs.id = artifacts.job_id
+                """
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO assets
+                (id, source_type, source_id, source_name, kind, title, content,
+                 tags_json, status, created_at, updated_at)
+                SELECT
+                    'asset_legacy_' || id,
+                    'workflow_run',
+                    id,
+                    workflow_name,
+                    'workflow_output',
+                    workflow_name || ' · 运行成果',
+                    output,
+                    '["自动工作流"]',
+                    'active',
+                    created_at,
+                    COALESCE(completed_at, created_at)
+                FROM workflow_runs
+                WHERE status = 'done' AND output != ''
+                """
+            )
+            connection.execute("PRAGMA optimize")

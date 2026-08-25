@@ -98,3 +98,59 @@ export interface WorkflowRun {
   created_at: string
   completed_at: string | null
 }
+
+export type TaskSourceType = 'agent_job' | 'workflow_run'
+export type AssetStatus = 'active' | 'archived'
+export type AssetHandoffTarget = 'creative_video' | 'storyboard' | 'publisher'
+
+export interface TaskCenterStep {
+  order: number
+  name: string
+  status: StepStatus
+  output: string
+}
+
+export interface TaskCenterItem {
+  id: string
+  source_type: TaskSourceType
+  definition_id: string
+  title: string
+  description: string
+  owner: string
+  status: JobStatus
+  steps: TaskCenterStep[]
+  output: string
+  asset_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface AssetRecord {
+  id: string
+  source_type: TaskSourceType | 'manual'
+  source_id: string
+  source_name: string
+  kind: string
+  title: string
+  content: string
+  tags: string[]
+  status: AssetStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdateAssetInput {
+  title?: string
+  tags?: string[]
+  status?: AssetStatus
+}
+
+export interface AssetHandoff {
+  id: string
+  asset_id: string
+  asset_title: string
+  target: AssetHandoffTarget
+  status: 'queued' | 'processing' | 'done' | 'failed'
+  note: string
+  created_at: string
+}

@@ -141,6 +141,9 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 | `Artifact` | 可保存和复用的交付成果 | 类型、标题、正文、来源任务 |
 | `Workflow` | 可以反复使用的自动化模板 | 名称、步骤定义、运行次数 |
 | `WorkflowRun` | 一次真实工作流执行 | 输入、步骤状态、输出、完成时间 |
+| `Asset` | 可以搜索、归档和跨模块复用的成果 | 来源、类型、正文、标签、状态 |
+| `AssetHandoff` | 一次成果跨模块流转任务 | 成果、目标模块、状态、时间 |
+| `TaskCenterItem` | 任务中心统一读模型 | 来源、步骤、进度、成果引用 |
 
 任务状态机：
 
@@ -173,6 +176,11 @@ stateDiagram-v2
 | `DELETE` | `/api/v1/workflows/{id}` | 删除自定义工作流 |
 | `POST` | `/api/v1/workflows/{id}/runs` | 运行工作流并保存每步结果 |
 | `GET` | `/api/v1/workflow-runs` | 查询全部或指定工作流的运行记录 |
+| `GET` | `/api/v1/tasks` | 统一查询 Agent 任务与工作流运行 |
+| `GET/PATCH` | `/api/v1/assets/{id}` | 查看或编辑成果资产 |
+| `GET` | `/api/v1/assets` | 搜索并筛选全部成果资产 |
+| `POST` | `/api/v1/assets/{id}/handoffs` | 创建视频、剪辑或发布流转任务 |
+| `GET` | `/api/v1/asset-handoffs` | 查询跨模块流转记录 |
 
 所有接口以 JSON 通信。FastAPI 会自动生成 `/docs` 交互式接口文档。
 

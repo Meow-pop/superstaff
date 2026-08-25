@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 
 import { DashboardPage } from './pages/DashboardPage'
+import { AssetCenterPage } from './pages/AssetCenterPage'
 import { EmployeeWorkspace } from './pages/EmployeeWorkspace'
 import { ModulePlaceholder, type ModuleDefinition } from './pages/ModulePlaceholder'
 import { WorkflowPage } from './pages/WorkflowPage'
+import { TaskCenterPage } from './pages/TaskCenterPage'
 
 export type PageKey =
   | 'home'
@@ -273,7 +275,9 @@ function App() {
         {activePage === 'home' && <DashboardPage onNavigate={navigate} />}
         {activePage === 'agent' && <EmployeeWorkspace />}
         {activePage === 'workflow' && <WorkflowPage />}
-        {activeModule && activePage !== 'workflow' && <ModulePlaceholder module={activeModule} onNavigate={navigate} />}
+        {activePage === 'tasks' && <TaskCenterPage onNavigate={navigate} />}
+        {activePage === 'assets' && <AssetCenterPage />}
+        {activeModule && !['workflow', 'tasks', 'assets'].includes(activePage) && <ModulePlaceholder module={activeModule} onNavigate={navigate} />}
       </div>
     </div>
   )

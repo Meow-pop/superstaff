@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from app.domain.entities import Job, JobStatus, StepStatus
+from app.domain.entities import Asset, AssetStatus, Job, JobStatus, StepStatus
 from app.domain.errors import (
     EmployeeUnavailableError,
     ExecutionError,
@@ -11,7 +11,7 @@ from app.domain.errors import (
     NotFoundError,
 )
 from app.executors.base import EmployeeExecutor
-from app.repositories.protocols import EmployeeRepository, JobRepository
+from app.repositories.protocols import AssetRepository, EmployeeRepository, JobRepository
 
 
 def utc_now() -> str:
@@ -23,10 +23,12 @@ class JobService:
         self,
         employee_repository: EmployeeRepository,
         job_repository: JobRepository,
+        asset_repository: AssetRepository,
         executor: EmployeeExecutor,
     ):
         self.employees = employee_repository
         self.jobs = job_repository
+        self.assets = asset_repository
         self.executor = executor
 
     def list_jobs(self) -> list[Job]:
@@ -84,6 +86,21 @@ class JobService:
 
             artifact = self.executor.compose_artifact(employee, job)
             self.jobs.add_artifact(artifact)
+            self.assets.create(
+                Asset(
+                    id=f"asset_{uuid4().hex[:10]}",
+                    source_type="agent_job",
+                    source_id=job.id,
+                    source_name=f"{employee.name} · {employee.role}",
+                    kind=artifact.kind,
+                    title=artifact.title,
+                    content=artifact.content,
+                    tags=["AI员工", employee.name, "待复用"],
+                    status=AssetStatus.ACTIVE,
+                    created_at=artifact.created_at,
+                    updated_at=artifact.created_at,
+                )
+            )
             job.status = JobStatus.REVIEW
             job.result_summary = "首版成果已生成，等待人工检查和验收。"
             job.updated_at = utc_now()

@@ -170,7 +170,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         <div className="dashboard-panel">
           <div className="dashboard-panel-title">
             <div><span>RECENT JOBS</span><h2>最近任务</h2></div>
-            <button type="button" onClick={() => onNavigate('agent')}>查看全部 →</button>
+            <button type="button" onClick={() => onNavigate('tasks')}>查看全部 →</button>
           </div>
           <div className="dashboard-job-list">
             {jobs.slice(0, 4).map((job) => (

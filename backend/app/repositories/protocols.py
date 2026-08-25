@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.domain.entities import Artifact, Employee, Job, Workflow, WorkflowRun
+from app.domain.entities import (
+    Artifact,
+    Asset,
+    AssetHandoff,
+    Employee,
+    Job,
+    Workflow,
+    WorkflowRun,
+)
 
 
 class EmployeeRepository(Protocol):
@@ -41,3 +49,25 @@ class WorkflowRepository(Protocol):
     def create_run(self, run: WorkflowRun) -> WorkflowRun: ...
 
     def save_run(self, run: WorkflowRun) -> WorkflowRun: ...
+
+
+class AssetRepository(Protocol):
+    def list(
+        self,
+        query: str | None = None,
+        source_type: str | None = None,
+        kind: str | None = None,
+        status: str | None = None,
+    ) -> list[Asset]: ...
+
+    def get(self, asset_id: str) -> Asset | None: ...
+
+    def find_by_source(self, source_type: str, source_id: str) -> list[Asset]: ...
+
+    def create(self, asset: Asset) -> Asset: ...
+
+    def save(self, asset: Asset) -> Asset: ...
+
+    def list_handoffs(self, asset_id: str | None = None) -> list[AssetHandoff]: ...
+
+    def create_handoff(self, handoff: AssetHandoff) -> AssetHandoff: ...

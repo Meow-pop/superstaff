@@ -21,9 +21,12 @@ from app.executors.demo import DemoEmployeeExecutor
 from app.executors.workflow_demo import DemoWorkflowExecutor
 from app.infrastructure.database import SQLiteDatabase
 from app.repositories.sqlite import SQLiteEmployeeRepository, SQLiteJobRepository
+from app.repositories.assets import SQLiteAssetRepository
 from app.repositories.workflows import SQLiteWorkflowRepository
+from app.services.assets import AssetService
 from app.services.employees import EmployeeService
 from app.services.jobs import JobService
+from app.services.task_center import TaskCenterService
 from app.services.workflows import WorkflowService
 
 
@@ -143,6 +146,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     employee_repository.seed(seed_employees())
     job_repository = SQLiteJobRepository(database)
     workflow_repository = SQLiteWorkflowRepository(database)
+    asset_repository = SQLiteAssetRepository(database)
     workflow_repository.seed(seed_workflows())
     executor = DemoEmployeeExecutor()
     workflow_executor = DemoWorkflowExecutor()
@@ -161,8 +165,16 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     )
     app.state.container = Container(
         employee_service=EmployeeService(employee_repository),
-        job_service=JobService(employee_repository, job_repository, executor),
-        workflow_service=WorkflowService(workflow_repository, workflow_executor),
+        job_service=JobService(
+            employee_repository, job_repository, asset_repository, executor
+        ),
+        workflow_service=WorkflowService(
+            workflow_repository, asset_repository, workflow_executor
+        ),
+        task_center_service=TaskCenterService(
+            job_repository, workflow_repository, asset_repository
+        ),
+        asset_service=AssetService(asset_repository),
     )
     app.include_router(api_router)
 

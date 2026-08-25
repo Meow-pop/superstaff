@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.domain.entities import (
+    Asset,
+    AssetStatus,
     StepStatus,
     Workflow,
     WorkflowRun,
@@ -14,7 +16,7 @@ from app.domain.entities import (
 )
 from app.domain.errors import ExecutionError, NotFoundError
 from app.executors.base import WorkflowExecutor
-from app.repositories.protocols import WorkflowRepository
+from app.repositories.protocols import AssetRepository, WorkflowRepository
 
 
 def utc_now() -> str:
@@ -22,8 +24,14 @@ def utc_now() -> str:
 
 
 class WorkflowService:
-    def __init__(self, repository: WorkflowRepository, executor: WorkflowExecutor):
+    def __init__(
+        self,
+        repository: WorkflowRepository,
+        asset_repository: AssetRepository,
+        executor: WorkflowExecutor,
+    ):
         self.repository = repository
+        self.assets = asset_repository
         self.executor = executor
 
     def list_workflows(self) -> list[Workflow]:
@@ -138,6 +146,21 @@ class WorkflowService:
                 completed_at=completed_at,
             )
             self.repository.save_run(completed_run)
+            self.assets.create(
+                Asset(
+                    id=f"asset_{uuid4().hex[:10]}",
+                    source_type="workflow_run",
+                    source_id=completed_run.id,
+                    source_name=workflow.name,
+                    kind="workflow_output",
+                    title=f"{workflow.name} · 运行成果",
+                    content=completed_run.output,
+                    tags=["自动工作流", workflow.name, "待复用"],
+                    status=AssetStatus.ACTIVE,
+                    created_at=completed_run.created_at,
+                    updated_at=completed_at,
+                )
+            )
             self.repository.save(
                 replace(
                     workflow,

@@ -164,6 +164,22 @@ export interface ProductionScene {
   visual: string
   narration: string
   duration_seconds: number
+  shot_type: '特写' | '中景' | '全景' | '信息图' | '产品镜头'
+  camera_motion: '静止' | '快速推进' | '缓慢横移' | '分层上浮' | '轻推定格'
+  transition: '硬切' | '闪白切入' | '遮罩滑动' | '叠化' | '淡出'
+}
+
+export interface ProductionBrief {
+  audience: string
+  objective: string
+  aspect_ratio: '9:16' | '16:9' | '1:1'
+  visual_style: 'editorial' | 'minimal' | 'technology'
+  pace: 'calm' | 'balanced' | 'fast'
+  brand_name: string
+  primary_color: string
+  accent_color: string
+  call_to_action: string
+  ai_label: boolean
 }
 
 export interface ProductionJob {
@@ -175,6 +191,7 @@ export interface ProductionJob {
   status: ProductionStatus
   script: string
   scenes: ProductionScene[]
+  brief: ProductionBrief
   output: string
   account_id: string | null
   account_name: string
@@ -256,4 +273,14 @@ export interface SystemDiagnostics {
   database_size_bytes: number
   counts: Record<string, number>
   checked_at: string
+}
+
+export interface LocalModelStatus {
+  mode: 'demo' | 'ollama'
+  reachable: boolean
+  model_ready: boolean
+  configured_model: string
+  installed_models: string[]
+  base_url: string
+  detail: string
 }

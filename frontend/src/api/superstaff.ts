@@ -9,12 +9,15 @@ import type {
   Employee,
   Job,
   ProductionJob,
+  ProductionBrief,
+  ProductionScene,
   ProductionTarget,
   ProviderConfig,
   SocialAccount,
   SocialAccountStatus,
   TaskCenterItem,
   SystemDiagnostics,
+  LocalModelStatus,
   UpdateAssetInput,
   UpdateWorkspaceInput,
   Workflow,
@@ -87,6 +90,24 @@ export const superstaffApi = {
     ),
   runProductionJob: (jobId: string) =>
     request<ProductionJob>(`/production-jobs/${jobId}/run`, { method: 'POST' }),
+  updateProductionBrief: (jobId: string, brief: ProductionBrief) =>
+    request<ProductionJob>(`/production-jobs/${jobId}/brief`, {
+      method: 'PATCH',
+      body: JSON.stringify(brief),
+    }),
+  updateProductionScene: (jobId: string, scene: ProductionScene) =>
+    request<ProductionJob>(`/production-jobs/${jobId}/scenes/${scene.order}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: scene.title,
+        visual: scene.visual,
+        narration: scene.narration,
+        duration_seconds: scene.duration_seconds,
+        shot_type: scene.shot_type,
+        camera_motion: scene.camera_motion,
+        transition: scene.transition,
+      }),
+    }),
   approveProductionJob: (jobId: string) =>
     request<ProductionJob>(`/production-jobs/${jobId}/approve`, { method: 'POST' }),
   scheduleProductionJob: (jobId: string, accountId: string, scheduledAt: string) =>
@@ -112,6 +133,7 @@ export const superstaffApi = {
   listAuditEvents: (limit = 100) =>
     request<AuditEvent[]>(`/admin/audit-events?limit=${limit}`),
   getDiagnostics: () => request<SystemDiagnostics>('/admin/diagnostics'),
+  getLocalModelStatus: () => request<LocalModelStatus>('/admin/local-model'),
   downloadBackup: async () => {
     const response = await fetch(`${API_BASE}/admin/backups/export`)
     if (!response.ok) throw new Error(`备份下载失败（HTTP ${response.status}）`)

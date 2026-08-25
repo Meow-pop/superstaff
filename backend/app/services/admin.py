@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from app.domain.entities import AuditEvent, WorkspaceSettings
 from app.repositories.protocols import AdminRepository
+from app.integrations.ollama import OllamaClient
 
 
 def utc_now() -> str:
@@ -16,9 +17,17 @@ def utc_now() -> str:
 
 
 class AdminService:
-    def __init__(self, repository: AdminRepository, database_path: Path):
+    def __init__(
+        self,
+        repository: AdminRepository,
+        database_path: Path,
+        llm_mode: str = "demo",
+        ollama_client: OllamaClient | None = None,
+    ):
         self.repository = repository
         self.database_path = database_path
+        self.llm_mode = llm_mode
+        self.ollama_client = ollama_client
 
     def get_workspace(self) -> WorkspaceSettings:
         return self.repository.get_workspace()
@@ -78,7 +87,7 @@ class AdminService:
         database_exists = self.database_path.exists()
         return {
             "status": "ok" if database_exists else "degraded",
-            "version": "0.4.0",
+            "version": "0.5.0",
             "runtime": f"Python {platform.python_version()}",
             "storage": "SQLite",
             "database_ready": database_exists,
@@ -88,6 +97,19 @@ class AdminService:
             "counts": counts,
             "checked_at": utc_now(),
         }
+
+    def local_model_status(self) -> dict:
+        if self.llm_mode != "ollama" or self.ollama_client is None:
+            return {
+                "mode": "demo",
+                "reachable": False,
+                "model_ready": False,
+                "configured_model": "",
+                "installed_models": [],
+                "base_url": "",
+                "detail": "当前使用内置规则执行器；设置 SUPERSTAFF_LLM_MODE=ollama 后启用本地模型。",
+            }
+        return {"mode": "ollama", **self.ollama_client.status()}
 
     def record_http_mutation(
         self, method: str, path: str, status_code: int, query: str

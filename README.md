@@ -1,140 +1,110 @@
-# 超级 AI 员工 Superstaff
+# Superstaff · 超级 AI 员工
 
-本项目的产品目标是复现参考视频中的“AI 超级员工系统”：从 Agent、工作流和内容生产，逐步扩展到视频矩阵、数字人、获客、线索与客服。用户下达业务目标，AI 员工负责计划、执行、交付，并在关键节点等待人工验收。
+Superstaff 是一个本地优先、可私有部署的企业 AI 员工工作台。用户提交业务目标，系统负责拆解任务、执行工作流、沉淀成果、组织视频生产，并在发布等外部动作前保留人工审核。
 
-学习前端、后端、数据库和 AI 工程是我们开发过程中的伴随目标，不是产品本身的功能。产品界面始终以参考视频为准，学习材料独立放在 `docs/`。
-
-当前仓库同时保留两条线：
-
-- **正式版全栈 MVP**：`frontend/` + `backend/`，是现在的主开发方向。
-- **v0.2 静态原型**：根目录的 `index.html`、`app.js`、`app2.js`，保留已有内容、工作流、素材和本地视频能力。
-
-视频只是内容员工可以调用的一项技能，不是产品核心。
-
-## 已打通的正式版闭环
+产品核心不是单次生成一段文字或视频，而是把工作变成可以追踪、复用和交付的闭环：
 
 ```text
-选择 AI 员工 → 下达业务目标 → 生成执行计划 → 开始执行
-             → 形成成果 → 人工验收 → 任务完成
+业务目标 → AI 员工规划与执行 → 人工验收 → 成果资产
+        → 创作简报 → 脚本与分镜 → 本地品牌渲染 → 制作包导出
 ```
 
-正式版目前包含：
+## 当前能力
 
-- 视频同款系统壳、总控首页和完整业务模块导航。
-- React + TypeScript 员工工作台。
-- 可创建、删除、运行并查看历史结果的自动工作流。
-- 统一汇总 Agent 任务与工作流运行的任务中心。
-- 自动沉淀、搜索、编辑和归档交付成果的资产中心。
-- 可追踪的创意视频、剪辑和发布跨模块流转队列。
-- 正式创意视频与多场景剪辑任务，可生成脚本、分镜和本地 WebM。
-- 账号矩阵、演示账号管理和安全的发布排期。
-- Docker Compose 一键运行与持久化数据卷。
-- 首次使用引导、工作区配置和清晰的演示/正式能力边界。
-- 系统诊断、供应商适配状态、操作审计和全量 JSON 数据备份。
-- FastAPI REST API 与自动生成的接口文档。
-- SQLite 持久化员工、任务、工作流、步骤、运行记录和成果。
-- 清晰的路由、业务服务、仓储和执行器分层。
-- 无需模型 Key 的演示执行器。
-- 后端任务与工作流生命周期测试、前端测试和 GitHub CI。
+- React + TypeScript 企业工作台，FastAPI + SQLite 后端。
+- AI 员工任务、自动工作流、统一任务中心和成果资产中心。
+- 可追踪的跨模块流转、人工验收、操作审计和 JSON 数据备份。
+- 本地优先视频工作室：创作简报、品牌套件、画幅/风格/节奏、可编辑镜头、镜头运动、转场、质量检查和结构化制作包。
+- 浏览器本地生成 9:16、16:9 或 1:1 WebM 成片，不需要云端视频账号。
+- 默认规则执行器无需模型也能运行；可选连接客户自己的 Ollama + Qwen3 本地模型。
+- Docker Compose 一键运行，SQLite 与本地模型分别使用持久化数据卷。
+- 后端接口测试、前端测试、生产构建和 GitHub CI。
+
+## 独立商用架构
+
+默认安装不调用云模型、不保存第三方平台密码，也不绕过平台授权：
+
+- 语言与分镜：内置规则执行器，或客户自有 Ollama。
+- 视觉与视频：Canvas + MediaRecorder 本地品牌动效引擎。
+- 音频：Web Audio 本地背景音轨；离线语音包作为后续可选模块。
+- 发布：导出视频和结构化制作包，由用户审核后手动上传。
+
+项目代码采用专有许可证。React、FastAPI、Ollama、Qwen3 等第三方组件仍按各自宽松许可证使用并保留声明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 仓库结构
 
 ```text
-frontend/   React + TypeScript：页面、交互和 API 客户端
-backend/    FastAPI + SQLite：业务规则、数据和 AI 执行接口
-docs/       系统架构、学习路线与逐功能课程
-tests/      v0.2 静态原型的冒烟测试
-index.html  可立即打开的旧版静态原型
+frontend/                    React + TypeScript 前端
+backend/                     FastAPI + SQLite 后端与执行器
+backend/app/integrations/    本地模型等可插拔能力
+docs/                        架构、交付、商业化与学习材料
+docker-compose.yml           无模型也可运行的基础版
+docker-compose.local-ai.yml  Ollama + Qwen3 本地模型扩展
 ```
 
-完整说明见 [产品级 Demo 交付说明](docs/PRODUCT_DEMO.md)、[视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md)、[学习指南](docs/LEARNING_GUIDE.md) 和 [打包交付指南](docs/PACKAGING.md)。逐功能学习材料位于 `docs/LESSON_*.md`。
+## 最快启动
 
-## 最快查看与交付
+### 标准本地版
 
-当前开发服务运行时，打开 `http://127.0.0.1:5173`。
-
-其他人可以从 GitHub 下载 ZIP。推荐安装 Docker Desktop 后在项目目录运行：
+Windows 双击 `start-demo.bat`，或者运行：
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
-然后打开 `http://127.0.0.1:8080`。Windows 也可以运行 `.\scripts\start-demo.ps1` 自动启动并打开网页。如果是交给不熟悉命令行的人，解压后直接双击根目录的 `start-demo.bat` 即可。
+打开 <http://127.0.0.1:8080>。
 
-## 启动正式版
+### 本地模型版
 
-需要打开两个 PowerShell 终端。
-
-### 终端 1：后端
-
-首次运行：
+Windows 双击 `start-local-ai.bat`，或者运行：
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
+docker compose -f docker-compose.yml -f docker-compose.local-ai.yml up -d --build
 ```
 
-以后运行：
+首次启动会在客户电脑下载 `qwen3:4b`，之后模型数据保存在 `superstaff_models` 数据卷中。系统控制台会显示 Ollama 连接和模型状态。
+
+也可以让后端连接已经安装的 Ollama：
 
 ```powershell
+$env:SUPERSTAFF_LLM_MODE = "ollama"
+$env:SUPERSTAFF_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+$env:SUPERSTAFF_OLLAMA_MODEL = "qwen3:4b"
 cd backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-后端地址是 `http://127.0.0.1:8000`，交互式 API 文档是 `http://127.0.0.1:8000/docs`。
-
-### 终端 2：前端
-
-首次运行：
-
-```powershell
-cd frontend
-pnpm install
-pnpm dev
-```
-
-以后只需运行 `pnpm dev`。访问 `http://127.0.0.1:5173`。
-
-## 运行测试
+## 开发与测试
 
 后端：
 
 ```powershell
 cd backend
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
 前端：
 
 ```powershell
 cd frontend
+pnpm install
 pnpm test
 pnpm build
+pnpm dev
 ```
 
-静态原型：
+开发页面为 <http://127.0.0.1:5173>，API 文档为 <http://127.0.0.1:8000/docs>。
 
-```powershell
-node tests\smoke.mjs
-```
+## 文档
 
-## 静态原型现有能力
+- [产品验收说明](docs/PRODUCT_DEMO.md)
+- [安装与交付](docs/PACKAGING.md)
+- [独立商业化架构](docs/COMMERCIALIZATION.md)
+- [AI 视频产品调研](docs/AI_VIDEO_MARKET_RESEARCH.md)
+- [系统架构](docs/ARCHITECTURE.md)
+- [边开发边学习](docs/LEARNING_GUIDE.md)
 
-- AI 员工对话和自定义角色。
-- 多步骤自动工作流。
-- 素材库以及内容到视频的交接。
-- Canvas + MediaRecorder 本地生成竖版 WebM 视频。
-- 账号、客户、演示数据和 JSON 备份。
-
-静态原型的业务数据保存在浏览器 `localStorage`。正式版数据保存在 `backend/data/superstaff.db`，该文件不会提交到 Git。
-
-## 下一步
-
-1. 完成 M4 模型与媒体供应商适配层，服务端管理密钥。
-2. 增加后台任务队列、实时进度、超时和重试。
-3. 接入高质量图片、配音、视频和数字人供应商。
-4. 接入正式平台 OAuth、发布前人工确认和平台回执。
-5. 增加员工配置、工具权限、记忆和成本审计。
+当前定位是可交付的本地单工作区产品。公网 SaaS、多租户计费、企业 SSO、自动平台发布和写实生成式视频模型属于独立的后续模块。

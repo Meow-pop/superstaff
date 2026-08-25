@@ -5,6 +5,7 @@ from dataclasses import asdict
 
 from app.domain.entities import (
     ProductionJob,
+    ProductionBrief,
     ProductionScene,
     ProductionStatus,
     SocialAccount,
@@ -48,9 +49,9 @@ class SQLiteProductionRepository:
                 """
                 INSERT OR IGNORE INTO production_jobs
                 (id, handoff_id, asset_id, title, target, status, script,
-                 scenes_json, output, account_id, account_name, scheduled_at,
+                 scenes_json, brief_json, output, account_id, account_name, scheduled_at,
                  created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 self._job_values(job),
             )
@@ -66,7 +67,7 @@ class SQLiteProductionRepository:
                 """
                 UPDATE production_jobs
                 SET title = ?, target = ?, status = ?, script = ?,
-                    scenes_json = ?, output = ?, account_id = ?, account_name = ?,
+                    scenes_json = ?, brief_json = ?, output = ?, account_id = ?, account_name = ?,
                     scheduled_at = ?, updated_at = ?
                 WHERE id = ?
                 """,
@@ -76,6 +77,7 @@ class SQLiteProductionRepository:
                     job.status.value,
                     job.script,
                     self._scenes_json(job.scenes),
+                    json.dumps(asdict(job.brief), ensure_ascii=False),
                     job.output,
                     job.account_id,
                     job.account_name,
@@ -156,6 +158,7 @@ class SQLiteProductionRepository:
             job.status.value,
             job.script,
             self._scenes_json(job.scenes),
+            json.dumps(asdict(job.brief), ensure_ascii=False),
             job.output,
             job.account_id,
             job.account_name,
@@ -170,6 +173,8 @@ class SQLiteProductionRepository:
 
     @staticmethod
     def _job_from_row(row) -> ProductionJob:
+        brief_payload = json.loads(row["brief_json"] or "{}")
+        scene_payloads = json.loads(row["scenes_json"])
         return ProductionJob(
             id=row["id"],
             handoff_id=row["handoff_id"],
@@ -178,7 +183,31 @@ class SQLiteProductionRepository:
             target=row["target"],
             status=ProductionStatus(row["status"]),
             script=row["script"],
-            scenes=[ProductionScene(**item) for item in json.loads(row["scenes_json"])],
+            scenes=[
+                ProductionScene(
+                    order=item["order"],
+                    title=item["title"],
+                    visual=item["visual"],
+                    narration=item["narration"],
+                    duration_seconds=item["duration_seconds"],
+                    shot_type=item.get("shot_type", "信息图"),
+                    camera_motion=item.get("camera_motion", "轻推"),
+                    transition=item.get("transition", "淡入淡出"),
+                )
+                for item in scene_payloads
+            ],
+            brief=ProductionBrief(
+                audience=brief_payload.get("audience", "对主题感兴趣的潜在用户"),
+                objective=brief_payload.get("objective", "清楚传达核心观点并推动行动"),
+                aspect_ratio=brief_payload.get("aspect_ratio", "9:16"),
+                visual_style=brief_payload.get("visual_style", "editorial"),
+                pace=brief_payload.get("pace", "balanced"),
+                brand_name=brief_payload.get("brand_name", "超级员工"),
+                primary_color=brief_payload.get("primary_color", "#4338ca"),
+                accent_color=brief_payload.get("accent_color", "#22d3ee"),
+                call_to_action=brief_payload.get("call_to_action", "保存并开始你的第一个工作流"),
+                ai_label=bool(brief_payload.get("ai_label", True)),
+            ),
             output=row["output"],
             account_id=row["account_id"],
             account_name=row["account_name"],

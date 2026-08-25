@@ -61,10 +61,18 @@ class SQLiteAdminRepository:
         with self.database.connect() as connection:
             connection.executemany(
                 """
-                INSERT OR IGNORE INTO provider_configs
+                INSERT INTO provider_configs
                 (id, category, display_name, adapter, mode, credential_env,
                  description, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    category = excluded.category,
+                    display_name = excluded.display_name,
+                    adapter = excluded.adapter,
+                    mode = excluded.mode,
+                    credential_env = excluded.credential_env,
+                    description = excluded.description,
+                    updated_at = excluded.updated_at
                 """,
                 [
                     (

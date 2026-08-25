@@ -59,3 +59,13 @@ class DiagnosticRead(BaseModel):
     database_size_bytes: int
     counts: dict[str, int]
     checked_at: str
+
+
+class LocalModelStatusRead(BaseModel):
+    mode: Literal["demo", "ollama"]
+    reachable: bool
+    model_ready: bool
+    configured_model: str
+    installed_models: list[str]
+    base_url: str
+    detail: str

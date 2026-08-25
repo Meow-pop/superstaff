@@ -251,7 +251,7 @@ function App() {
       <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark"><span>✦</span></div>
-          <div><strong>熠企超级员工</strong><span>AI 企业智能体系统</span></div>
+          <div><strong>Superstaff</strong><span>本地优先的 AI 企业员工系统</span></div>
         </div>
 
         <nav className="sidebar-nav" aria-label="系统功能导航">

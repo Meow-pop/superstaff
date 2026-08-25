@@ -294,6 +294,67 @@ def test_video_handoff_enters_production_and_generates_scenes(client: TestClient
     assert repeated.status_code == 409
 
 
+def test_video_brief_regeneration_and_scene_editing(client: TestClient):
+    asset = create_workflow_asset(client, "workflow-content-engine")
+    handoff = client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "creative_video", "note": "商业短视频制作"},
+    )
+    assert handoff.status_code == 201
+    job = client.get(
+        "/api/v1/production-jobs", params={"target": "creative_video"}
+    ).json()[0]
+
+    brief = {
+        "audience": "需要部署本地 AI 的中小企业负责人",
+        "objective": "解释数据不出本机的价值并引导申请试用",
+        "aspect_ratio": "16:9",
+        "visual_style": "technology",
+        "pace": "fast",
+        "brand_name": "Superstaff Local",
+        "primary_color": "#123456",
+        "accent_color": "#22d3ee",
+        "call_to_action": "申请企业试用",
+        "ai_label": True,
+    }
+    updated = client.patch(
+        f"/api/v1/production-jobs/{job['id']}/brief", json=brief
+    )
+    assert updated.status_code == 200
+    assert updated.json()["brief"] == brief
+
+    generated = client.post(f"/api/v1/production-jobs/{job['id']}/run")
+    assert generated.status_code == 200
+    assert generated.json()["status"] == "review"
+    assert generated.json()["scenes"][0]["camera_motion"] == "快速推进"
+
+    scene = generated.json()["scenes"][0]
+    edited = client.patch(
+        f"/api/v1/production-jobs/{job['id']}/scenes/1",
+        json={
+            **{key: value for key, value in scene.items() if key != "order"},
+            "title": "本地部署开场",
+            "narration": "企业数据不离开自己的设备。",
+        },
+    )
+    assert edited.status_code == 200
+    assert edited.json()["scenes"][0]["title"] == "本地部署开场"
+    assert "企业数据不离开" in edited.json()["script"]
+
+    regenerated = client.post(f"/api/v1/production-jobs/{job['id']}/run")
+    assert regenerated.status_code == 200
+    assert regenerated.json()["status"] == "review"
+
+
+def test_local_model_status_defaults_to_offline_rules(client: TestClient):
+    response = client.get("/api/v1/admin/local-model")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "demo"
+    assert payload["model_ready"] is False
+    assert "规则执行器" in payload["detail"]
+
+
 def test_publisher_handoff_can_be_scheduled_to_demo_account(client: TestClient):
     accounts = client.get("/api/v1/accounts")
     assert accounts.status_code == 200

@@ -1,6 +1,6 @@
 # Superstaff API
 
-FastAPI 后端负责员工、工作流、统一任务、成果资产、内容制作、账号矩阵和发布排期的业务规则。当前使用 SQLite 与演示执行器，因此无需模型 Key 也能跑通完整任务闭环。
+FastAPI 后端负责员工、工作流、统一任务、成果资产、内容制作、账号矩阵和发布排期的业务规则。当前使用 SQLite 与内置规则执行器，因此无需模型 Key 也能跑通完整任务闭环；设置 `SUPERSTAFF_LLM_MODE=ollama` 后可调用客户自己的本地 Qwen 模型。
 
 ```powershell
 python -m venv .venv

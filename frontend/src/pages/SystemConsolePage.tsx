@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { superstaffApi } from '../api/superstaff'
 import type {
   AuditEvent,
+  LocalModelStatus,
   ProviderConfig,
   SystemDiagnostics,
   WorkspaceSettings,
@@ -17,10 +18,10 @@ interface SystemConsolePageProps {
 
 const providerLabels = {
   language: '语言与推理',
-  image: '图片生成',
-  voice: '语音合成',
+  image: '视觉画面',
+  voice: '声音制作',
   video: '视频制作',
-  publishing: '平台发布',
+  publishing: '内容交付',
 } as const
 
 
@@ -35,6 +36,7 @@ export function SystemConsolePage({ onWorkspaceUpdated }: SystemConsolePageProps
   const [workspace, setWorkspace] = useState<WorkspaceSettings | null>(null)
   const [diagnostics, setDiagnostics] = useState<SystemDiagnostics | null>(null)
   const [providers, setProviders] = useState<ProviderConfig[]>([])
+  const [localModel, setLocalModel] = useState<LocalModelStatus | null>(null)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [workspaceName, setWorkspaceName] = useState('')
   const [ownerName, setOwnerName] = useState('')
@@ -48,15 +50,17 @@ export function SystemConsolePage({ onWorkspaceUpdated }: SystemConsolePageProps
   async function load() {
     setError('')
     try {
-      const [workspaceData, diagnosticData, providerData, auditData] = await Promise.all([
+      const [workspaceData, diagnosticData, providerData, localModelData, auditData] = await Promise.all([
         superstaffApi.getWorkspace(),
         superstaffApi.getDiagnostics(),
         superstaffApi.listProviders(),
+        superstaffApi.getLocalModelStatus(),
         superstaffApi.listAuditEvents(80),
       ])
       setWorkspace(workspaceData)
       setDiagnostics(diagnosticData)
       setProviders(providerData)
+      setLocalModel(localModelData)
       setAuditEvents(auditData)
       setWorkspaceName(workspaceData.workspace_name)
       setOwnerName(workspaceData.owner_name)
@@ -138,6 +142,13 @@ export function SystemConsolePage({ onWorkspaceUpdated }: SystemConsolePageProps
       <div className={`system-health-pill ${diagnostics?.status === 'ok' ? 'healthy' : 'degraded'}`}><i /> <span><b>{diagnostics?.status === 'ok' ? '系统运行正常' : '系统需要检查'}</b><small>Superstaff {diagnostics?.version}</small></span></div>
     </section>
 
+    <section className={`local-model-console ${localModel?.model_ready ? 'ready' : localModel?.mode === 'ollama' ? 'warning' : 'demo'}`}>
+      <div className="local-model-mark">AI</div>
+      <div className="local-model-copy"><span>LOCAL MODEL RUNTIME</span><h2>{localModel?.mode === 'ollama' ? `Ollama · ${localModel.configured_model}` : '内置规则执行器'}</h2><p>{localModel?.detail}</p></div>
+      <dl><div><dt>运行模式</dt><dd>{localModel?.mode === 'ollama' ? '本地模型' : '离线规则'}</dd></div><div><dt>服务连接</dt><dd>{localModel?.reachable ? '已连接' : localModel?.mode === 'ollama' ? '未连接' : '不需要'}</dd></div><div><dt>模型状态</dt><dd>{localModel?.model_ready ? '可执行' : localModel?.mode === 'ollama' ? '待下载' : '可演示'}</dd></div></dl>
+      <button type="button" onClick={() => void load()}>重新检测</button>
+    </section>
+
     <section className="system-metrics">
       <article><i>任</i><div><b>{metrics.tasks}</b><small>任务与运行</small></div></article>
       <article><i>资</i><div><b>{metrics.assets}</b><small>成果资产</small></div></article>
@@ -165,7 +176,7 @@ export function SystemConsolePage({ onWorkspaceUpdated }: SystemConsolePageProps
     </section>
 
     <section className="system-panel provider-panel">
-      <header><div><span>CAPABILITY ADAPTERS</span><h2>能力与供应商</h2></div><small>凭据只从服务端环境读取</small></header>
+      <header><div><span>CAPABILITY ADAPTERS</span><h2>本地能力适配器</h2></div><small>默认不需要第三方商业平台账号</small></header>
       <div className="provider-grid">{providers.map((provider) => <article key={provider.id}><div className="provider-card-head"><i>{providerLabels[provider.category].slice(0, 1)}</i><span><small>{providerLabels[provider.category]}</small><strong>{provider.display_name}</strong></span><em className={`provider-mode provider-mode-${provider.mode}`}>{provider.mode === 'active' ? '可用' : provider.mode === 'demo' ? '演示' : '待接入'}</em></div><p>{provider.description}</p><footer><code>{provider.adapter}</code>{provider.credential_env && <span className={provider.credential_detected ? 'detected' : ''}>{provider.credential_detected ? '已检测凭据' : provider.credential_env}</span>}</footer></article>)}</div>
     </section>
 

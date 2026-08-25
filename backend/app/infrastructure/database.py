@@ -143,6 +143,7 @@ class SQLiteDatabase:
                     status TEXT NOT NULL,
                     script TEXT NOT NULL DEFAULT '',
                     scenes_json TEXT NOT NULL DEFAULT '[]',
+                    brief_json TEXT NOT NULL DEFAULT '{}',
                     output TEXT NOT NULL DEFAULT '',
                     account_id TEXT,
                     account_name TEXT NOT NULL DEFAULT '',
@@ -211,6 +212,15 @@ class SQLiteDatabase:
                 ON audit_events(resource, resource_id, created_at DESC);
                 """
             )
+            production_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(production_jobs)")
+            }
+            if "brief_json" not in production_columns:
+                connection.execute(
+                    "ALTER TABLE production_jobs "
+                    "ADD COLUMN brief_json TEXT NOT NULL DEFAULT '{}'"
+                )
             connection.execute(
                 """
                 INSERT OR IGNORE INTO workspace_settings
@@ -269,7 +279,7 @@ class SQLiteDatabase:
                 """
                 INSERT OR IGNORE INTO production_jobs
                 (id, handoff_id, asset_id, title, target, status, script,
-                 scenes_json, output, account_id, account_name, scheduled_at,
+                 scenes_json, brief_json, output, account_id, account_name, scheduled_at,
                  created_at, updated_at)
                 SELECT
                     'production_legacy_' || asset_handoffs.id,
@@ -280,6 +290,7 @@ class SQLiteDatabase:
                     'queued',
                     '',
                     '[]',
+                    '{}',
                     '',
                     NULL,
                     '',

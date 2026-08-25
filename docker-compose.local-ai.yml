@@ -1,0 +1,35 @@
+services:
+  backend:
+    environment:
+      SUPERSTAFF_LLM_MODE: ollama
+      SUPERSTAFF_OLLAMA_BASE_URL: ${SUPERSTAFF_OLLAMA_BASE_URL:-http://ollama:11434}
+      SUPERSTAFF_OLLAMA_MODEL: ${SUPERSTAFF_OLLAMA_MODEL:-qwen3:4b}
+      SUPERSTAFF_OLLAMA_TIMEOUT: ${SUPERSTAFF_OLLAMA_TIMEOUT:-240}
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+
+  ollama:
+    image: ${SUPERSTAFF_OLLAMA_IMAGE:-ollama/ollama:latest}
+    volumes:
+      - superstaff_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  ollama-init:
+    image: ${SUPERSTAFF_OLLAMA_IMAGE:-ollama/ollama:latest}
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${SUPERSTAFF_OLLAMA_MODEL:-qwen3:4b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  superstaff_models:

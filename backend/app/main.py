@@ -25,8 +25,14 @@ from app.domain.errors import (
     NotFoundError,
 )
 from app.executors.demo import DemoEmployeeExecutor
+from app.executors.local_model import (
+    OllamaEmployeeExecutor,
+    OllamaProductionExecutor,
+    OllamaWorkflowExecutor,
+)
 from app.executors.production_demo import DemoProductionExecutor
 from app.executors.workflow_demo import DemoWorkflowExecutor
+from app.integrations.ollama import OllamaClient, OllamaSettings
 from app.infrastructure.database import SQLiteDatabase
 from app.repositories.sqlite import SQLiteEmployeeRepository, SQLiteJobRepository
 from app.repositories.assets import SQLiteAssetRepository
@@ -174,7 +180,7 @@ def seed_accounts() -> list[SocialAccount]:
         SocialAccount(
             id="account-wechat-demo",
             platform="视频号",
-            display_name="熠企超级员工",
+            display_name="Superstaff 企业内容号",
             handle="superstaff_video",
             status="disabled",
             follower_count=320,
@@ -184,35 +190,39 @@ def seed_accounts() -> list[SocialAccount]:
     ]
 
 
-def seed_providers() -> list[ProviderConfig]:
+def seed_providers(llm_mode: str, ollama_model: str) -> list[ProviderConfig]:
     updated_at = datetime(2026, 8, 25, tzinfo=timezone.utc).isoformat()
     definitions = [
         (
             "language-demo",
             "language",
-            "内置语言执行器",
-            "DemoEmployeeExecutor",
-            "demo",
+            "本地 Qwen 语言模型" if llm_mode == "ollama" else "内置规则执行器",
+            "Ollama" if llm_mode == "ollama" else "DemoEmployeeExecutor",
+            "active" if llm_mode == "ollama" else "demo",
             "",
-            "无需密钥，稳定演示规划、执行和成果交付闭环。",
+            (
+                f"通过客户自己的 Ollama 运行 {ollama_model}，不发送业务数据到云端。"
+                if llm_mode == "ollama"
+                else "无需模型即可运行完整闭环；启用 Ollama 后提升规划和脚本质量。"
+            ),
         ),
         (
             "image-external",
             "image",
-            "图片生成供应商",
-            "ExternalImageAdapter",
-            "waiting",
-            "SUPERSTAFF_IMAGE_API_KEY",
-            "适配层已预留，配置正式供应商后启用高质量画面。",
+            "本地视觉模板引擎",
+            "CanvasSceneEngine",
+            "active",
+            "",
+            "使用品牌色、版式和动效生成画面，不调用第三方图片服务。",
         ),
         (
             "voice-external",
             "voice",
-            "语音合成供应商",
-            "ExternalVoiceAdapter",
-            "waiting",
-            "SUPERSTAFF_VOICE_API_KEY",
-            "正式配音只从服务端环境读取凭据，不在浏览器保存密钥。",
+            "本地音频引擎",
+            "WebAudioSoundtrack",
+            "active",
+            "",
+            "默认生成本地背景音轨；可继续安装许可证明确的离线语音包。",
         ),
         (
             "video-local",
@@ -221,25 +231,25 @@ def seed_providers() -> list[ProviderConfig]:
             "CanvasMediaRecorder",
             "active",
             "",
-            "当前可用，可下载带基础音轨的 WebM 演示视频。",
+            "当前可用，可根据品牌简报生成带动效与音轨的高清视频。",
         ),
         (
             "video-external",
             "video",
-            "云端视频供应商",
-            "ExternalVideoAdapter",
-            "waiting",
-            "SUPERSTAFF_VIDEO_API_KEY",
-            "用于后续替换本地演示画面，制作任务和人工审核流程保持不变。",
+            "本地分镜导演",
+            "OllamaStoryboardAdapter" if llm_mode == "ollama" else "RuleStoryboardAdapter",
+            "active" if llm_mode == "ollama" else "demo",
+            "",
+            "本地生成脚本、镜头语言、运动和转场，不依赖云端视频平台。",
         ),
         (
             "publishing-oauth",
             "publishing",
-            "平台官方授权",
-            "OfficialPlatformOAuth",
-            "waiting",
-            "SUPERSTAFF_PUBLISHING_CLIENT_SECRET",
-            "当前只保存发布计划；获得官方授权后才允许真实发布。",
+            "人工审核发布包",
+            "ManualExportPackage",
+            "active",
+            "",
+            "导出视频、脚本和发布清单，由用户审核后手动上传到目标平台。",
         ),
     ]
     return [
@@ -264,6 +274,17 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     database = SQLiteDatabase(db_path)
     database.initialize()
 
+    llm_mode = os.getenv("SUPERSTAFF_LLM_MODE", "demo").strip().lower()
+    if llm_mode not in {"demo", "ollama"}:
+        logger.warning("Unknown SUPERSTAFF_LLM_MODE=%s; falling back to demo", llm_mode)
+        llm_mode = "demo"
+    ollama_settings = OllamaSettings(
+        base_url=os.getenv("SUPERSTAFF_OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+        model=os.getenv("SUPERSTAFF_OLLAMA_MODEL", "qwen3:4b"),
+        timeout_seconds=float(os.getenv("SUPERSTAFF_OLLAMA_TIMEOUT", "180")),
+    )
+    ollama_client = OllamaClient(ollama_settings)
+
     employee_repository = SQLiteEmployeeRepository(database)
     employee_repository.seed(seed_employees())
     job_repository = SQLiteJobRepository(database)
@@ -272,19 +293,29 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     production_repository = SQLiteProductionRepository(database)
     admin_repository = SQLiteAdminRepository(database)
     production_repository.seed_accounts(seed_accounts())
-    admin_repository.seed_providers(seed_providers())
+    admin_repository.seed_providers(seed_providers(llm_mode, ollama_settings.model))
     workflow_repository.seed(seed_workflows())
-    executor = DemoEmployeeExecutor()
-    workflow_executor = DemoWorkflowExecutor()
-    production_executor = DemoProductionExecutor()
+    if llm_mode == "ollama":
+        executor = OllamaEmployeeExecutor(ollama_client)
+        workflow_executor = OllamaWorkflowExecutor(ollama_client)
+        production_executor = OllamaProductionExecutor(ollama_client)
+    else:
+        executor = DemoEmployeeExecutor()
+        workflow_executor = DemoWorkflowExecutor()
+        production_executor = DemoProductionExecutor()
     production_service = ProductionService(
         production_repository, asset_repository, production_executor
     )
-    admin_service = AdminService(admin_repository, Path(db_path))
+    admin_service = AdminService(
+        admin_repository,
+        Path(db_path),
+        llm_mode=llm_mode,
+        ollama_client=ollama_client,
+    )
 
     app = FastAPI(
         title="超级 AI 员工 API",
-        version="0.4.0",
+        version="0.5.0",
         description="AI 员工、工作流、成果制作、发布计划与人工验收的后端服务。",
     )
     app.add_middleware(

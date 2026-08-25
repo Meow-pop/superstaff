@@ -188,12 +188,29 @@ class TaskCenterItem:
 
 
 @dataclass(frozen=True, slots=True)
+class ProductionBrief:
+    audience: str
+    objective: str
+    aspect_ratio: str
+    visual_style: str
+    pace: str
+    brand_name: str
+    primary_color: str
+    accent_color: str
+    call_to_action: str
+    ai_label: bool
+
+
+@dataclass(frozen=True, slots=True)
 class ProductionScene:
     order: int
     title: str
     visual: str
     narration: str
     duration_seconds: int
+    shot_type: str
+    camera_motion: str
+    transition: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,6 +223,7 @@ class ProductionJob:
     status: ProductionStatus
     script: str
     scenes: list[ProductionScene]
+    brief: ProductionBrief
     output: str
     account_id: str | None
     account_name: str

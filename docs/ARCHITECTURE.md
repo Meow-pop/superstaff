@@ -1,6 +1,6 @@
 # 超级 AI 员工：系统架构
 
-这份文档只描述如何把参考视频中的超级员工系统真正做出来。学习与面试讲解属于开发过程的伴随材料，见 `LEARNING_GUIDE.md`，不会改变产品的信息架构和界面。
+这份文档描述 Superstaff 独立产品的全栈架构。学习与面试讲解属于开发过程的伴随材料，见 `LEARNING_GUIDE.md`，不会改变产品的信息架构和界面。
 
 ## 1. 产品核心
 
@@ -57,11 +57,13 @@ flowchart TB
     RT --> APP[应用服务层<br/>JobService]
     APP --> DOM[领域层<br/>Employee / Job / Step / Artifact]
     APP --> REP[仓储接口与实现]
-    REP --> DB[(SQLite Demo<br/>PostgreSQL Production)]
+    REP --> DB[(SQLite Local Storage)]
     APP --> EXE[AI 员工执行器]
-    EXE --> LLM[模型供应商适配器]
-    EXE --> TOOL[技能 / 工具注册表]
-    TOOL --> EXT[搜索、视频、CRM、文件等外部服务]
+    EXE --> RULE[内置规则执行器]
+    EXE -.可选.-> OLLAMA[Ollama + Qwen3<br/>客户本地模型]
+    APP --> MEDIA[本地媒体引擎]
+    MEDIA --> CANVAS[Canvas + MediaRecorder + Web Audio]
+    APP --> EXPORT[人工审核制作包]
     APP -.后续.-> Q[Redis + 后台任务队列]
     Q -.进度事件.-> FE
 ```
@@ -76,7 +78,7 @@ flowchart TB
 - API 客户端把用户操作转换成 HTTP 请求。
 - CSS 负责布局、颜色、响应式适配和交互反馈。
 
-前端不应保存真正的 API Key，也不应直接决定任务的业务状态。
+前端不保存模型密钥或平台密码，也不直接决定任务的业务状态。
 
 ### 后端负责什么
 
@@ -86,14 +88,13 @@ flowchart TB
 - 应用服务编排完整用例，例如创建、执行和验收任务。
 - 领域对象表达业务概念和状态规则。
 - 仓储层负责读写数据库，让业务层不依赖具体数据库。
-- 执行器负责调用模型和技能，不把供应商代码散落在业务逻辑里。
+- 执行器负责调用规则、本地模型和技能，不把模型运行时代码散落在业务逻辑里。
 
 ### 数据层负责什么
 
-- Demo 使用 SQLite：它是一个本地文件，零配置，适合学习和演示。
-- 正式部署使用 PostgreSQL：支持并发、多用户、备份和更强查询能力。
-- 大文件进入对象存储，不直接塞进数据库。
-- Redis 和任务队列用于耗时工作、重试、超时和并发控制。
+- 当前产品使用 SQLite：它是客户本机上的单文件数据库，零配置且容易备份。
+- 视频文件由浏览器下载，数据库只保存创作参数、脚本、分镜和任务状态。
+- 企业多用户版再评估 PostgreSQL、对象存储、Redis 和后台任务队列。
 
 ### AI 层负责什么
 
@@ -101,7 +102,7 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 
 - 根据目标生成结构化计划。
 - 按步骤选择技能并生成结果。
-- 记录提示词版本、模型、耗时和成本。
+- 记录执行器类型、本地模型、耗时和生成来源。
 - 对输出做格式校验、质量检查和失败重试。
 - 在发送消息、发布内容或产生费用前等待人工批准。
 
@@ -109,10 +110,7 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 
 ```text
 超级AI员工/
-├── index.html              # 现有 v0.2 静态原型，持续可演示
-├── app.js
-├── app2.js
-├── frontend/               # 正式 React + TypeScript 前端
+├── frontend/               # React + TypeScript 前端
 │   ├── src/api/            # 对后端发 HTTP 请求
 │   ├── src/components/     # 可复用 UI 组件
 │   ├── src/pages/          # 页面级组件
@@ -124,12 +122,13 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 │   ├── app/services/       # 用例编排
 │   ├── app/repositories/   # 数据访问抽象
 │   ├── app/infrastructure/ # SQLite、配置等基础设施
-│   ├── app/executors/      # AI 员工执行器
+│   ├── app/integrations/   # Ollama 等本地能力适配器
+│   ├── app/executors/      # 规则与本地模型执行器
 │   └── tests/              # API 与业务测试
-└── docs/                   # 架构、学习与决策记录
+├── docker-compose.yml      # 基础本地版
+├── docker-compose.local-ai.yml # Ollama 本地模型扩展
+└── docs/                   # 架构、商业化、交付与学习记录
 ```
-
-静态原型暂时保留，因为它能立即展示已有能力。新前后端逐个替换它的页面，而不是先推倒再等待数月。
 
 ## 5. 第一批领域对象
 
@@ -144,11 +143,12 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 | `Asset` | 可以搜索、归档和跨模块复用的成果 | 来源、类型、正文、标签、状态 |
 | `AssetHandoff` | 一次成果跨模块流转任务 | 成果、目标模块、状态、时间 |
 | `TaskCenterItem` | 任务中心统一读模型 | 来源、步骤、进度、成果引用 |
-| `ProductionJob` | 视频、剪辑或发布模块的执行任务 | 交接、状态、脚本、场景、排期 |
-| `ProductionScene` | 视频制作中的一个场景 | 画面、旁白、时长、顺序 |
+| `ProductionJob` | 视频、剪辑或发布模块的执行任务 | 交接、状态、创作简报、脚本、场景、排期 |
+| `ProductionBrief` | 视频项目的品牌与创作约束 | 受众、目标、画幅、风格、节奏、颜色、CTA |
+| `ProductionScene` | 视频制作中的一个场景 | 画面、旁白、时长、景别、运动、转场 |
 | `SocialAccount` | 内容矩阵中的账号元数据 | 平台、名称、标识、授权状态 |
 | `WorkspaceSettings` | 单工作区的产品设置 | 名称、运行模式、人工确认、首次引导 |
-| `ProviderConfig` | 能力供应商适配状态 | 类别、适配器、模式、凭据环境变量名 |
+| `ProviderConfig` | 本地能力适配状态 | 类别、适配器、模式、说明 |
 | `AuditEvent` | 成功写操作的审计记录 | 动作、资源、状态码、时间 |
 
 任务状态机：
@@ -189,11 +189,14 @@ stateDiagram-v2
 | `GET` | `/api/v1/asset-handoffs` | 查询跨模块流转记录 |
 | `GET` | `/api/v1/production-jobs` | 查询视频、剪辑与发布制作任务 |
 | `POST` | `/api/v1/production-jobs/{id}/run` | 生成脚本和多场景方案 |
+| `PATCH` | `/api/v1/production-jobs/{id}/brief` | 保存创作简报和品牌套件 |
+| `PATCH` | `/api/v1/production-jobs/{id}/scenes/{order}` | 编辑指定镜头 |
 | `POST` | `/api/v1/production-jobs/{id}/approve` | 人工确认制作方案 |
 | `POST` | `/api/v1/production-jobs/{id}/schedule` | 选择账号并保存发布计划 |
 | `GET/POST` | `/api/v1/accounts` | 查询或添加内容账号元数据 |
 | `GET/PATCH` | `/api/v1/workspace` | 查询或更新工作区设置 |
-| `GET` | `/api/v1/admin/providers` | 查询能力适配器和凭据检测状态 |
+| `GET` | `/api/v1/admin/providers` | 查询本地能力适配状态 |
+| `GET` | `/api/v1/admin/local-model` | 检查 Ollama 和目标模型状态 |
 | `GET` | `/api/v1/admin/diagnostics` | 查询版本、运行时、存储和业务计数 |
 | `GET` | `/api/v1/admin/audit-events` | 查询成功写操作审计 |
 | `GET` | `/api/v1/admin/backups/export` | 下载全量 JSON 数据备份 |
@@ -202,17 +205,17 @@ stateDiagram-v2
 
 ## 7. 从 Demo 到正式产品的演进
 
-1. **纵向闭环**：一名内容运营员工、一个任务中心、SQLite、演示执行器。
-2. **接入真实模型**：统一模型适配器、服务端密钥、流式输出、成本记录。
-3. **后台执行**：Redis、任务队列、SSE 进度、超时、重试和取消。
-4. **技能平台**：搜索、文件、视频、CRM 等统一工具协议与权限。
-5. **多用户产品化**：账号、团队、租户隔离、审计日志、部署和监控。
+1. **本地纵向闭环**：任务、工作流、成果、视频、审核、SQLite 和规则执行器。
+2. **本地模型**：Ollama + Qwen3、结构化分镜输出、状态诊断和模型切换。
+3. **后台执行**：任务队列、SSE 进度、超时、重试和取消。
+4. **技能平台**：文件、知识库、研究、视频等统一工具协议与权限。
+5. **企业产品化**：登录、团队权限、审计、安装器、升级、备份恢复和监控。
 
 每一步都保持系统可运行，并只增加能形成业务闭环的模块。
 
 ## 8. 当前明确不做的事
 
-- 不把高质量视频模型作为第一阶段成功标准。
-- 不在前端直接持有正式环境的模型密钥。
+- 不把训练写实视频基础模型作为近期目标。
+- 不在前端持有平台密码或模型密钥。
 - 不同时接十个平台账号；先把技能接口和授权边界做正确。
 - 不为了“架构高级”提前拆微服务。一个结构清楚的单体后端更适合当前阶段。

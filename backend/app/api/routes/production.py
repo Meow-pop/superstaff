@@ -5,12 +5,15 @@ from fastapi import APIRouter, Depends, status
 from app.api.dependencies import get_container
 from app.container import Container
 from app.schemas.production import (
+    ProductionBriefUpdate,
     ProductionJobRead,
+    ProductionSceneUpdate,
     PublishScheduleCreate,
     SocialAccountCreate,
     SocialAccountRead,
     SocialAccountUpdate,
 )
+from app.domain.entities import ProductionBrief, ProductionScene
 
 
 router = APIRouter(tags=["production"])
@@ -42,6 +45,34 @@ def run_production_job(
     container: Annotated[Container, Depends(get_container)],
 ):
     return container.production_service.run_job(job_id)
+
+
+@router.patch("/production-jobs/{job_id}/brief", response_model=ProductionJobRead)
+def update_production_brief(
+    job_id: str,
+    payload: ProductionBriefUpdate,
+    container: Annotated[Container, Depends(get_container)],
+):
+    return container.production_service.update_brief(
+        job_id, ProductionBrief(**payload.model_dump())
+    )
+
+
+@router.patch(
+    "/production-jobs/{job_id}/scenes/{scene_order}",
+    response_model=ProductionJobRead,
+)
+def update_production_scene(
+    job_id: str,
+    scene_order: int,
+    payload: ProductionSceneUpdate,
+    container: Annotated[Container, Depends(get_container)],
+):
+    return container.production_service.update_scene(
+        job_id,
+        scene_order,
+        ProductionScene(order=scene_order, **payload.model_dump()),
+    )
 
 
 @router.post("/production-jobs/{job_id}/approve", response_model=ProductionJobRead)

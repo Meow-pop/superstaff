@@ -1,59 +1,69 @@
-# 如何查看、下载和交付超级 AI 员工
+# 安装、打包与商业交付
 
-## 1. 当前电脑直接查看
+## 1. 当前电脑查看
 
-开发服务运行时，打开：
+- Docker 产品版：<http://127.0.0.1:8080>
+- 开发前端：<http://127.0.0.1:5173>
+- API 文档：<http://127.0.0.1:8000/docs>
 
-- 正式页面：`http://127.0.0.1:5173`
-- 后端接口文档：`http://127.0.0.1:8000/docs`
+`127.0.0.1` 只代表当前电脑，不能作为公开网址发给客户。
 
-`127.0.0.1` 只代表当前电脑，不能直接发给别人访问。
+## 2. 两种交付包
 
-## 2. 从 GitHub 下载源代码
+| 版本 | 启动方式 | 模型 | 适用场景 |
+| --- | --- | --- | --- |
+| 标准本地版 | `start-demo.bat` | 内置规则执行器 | 演示、低配置电脑、流程试用 |
+| 本地模型版 | `start-local-ai.bat` | Ollama + Qwen3 | 私有部署、真实内容生产 |
 
-打开仓库后选择 `Code → Download ZIP`，解压即可得到完整源代码。直接下载代码不等于已经安装软件；本地开发方式仍需要 Python、Node.js 和 pnpm。
-
-## 3. 推荐的演示交付：Docker 一键运行
-
-使用者先安装 Docker Desktop，然后在解压后的项目目录运行：
-
-```powershell
-docker compose up --build
-```
-
-完成后打开 `http://127.0.0.1:8080`。
-
-Windows 用户解压后可以直接双击根目录的 `start-demo.bat`。它会完成构建、启动并自动打开网页。
-
-也可以在 PowerShell 中运行：
+标准版运行：
 
 ```powershell
-.\scripts\start-demo.ps1
+docker compose up -d --build
 ```
 
-停止系统：
+本地模型版运行：
 
 ```powershell
-.\scripts\stop-demo.ps1
+docker compose -f docker-compose.yml -f docker-compose.local-ai.yml up -d --build
 ```
 
-或者双击根目录的 `stop-demo.bat`。停止服务不会删除已有数据。
+停止服务不会删除数据。业务数据保存在 `superstaff_data`，模型权重保存在 `superstaff_models`。不要在未备份时删除这两个数据卷。
 
-Docker 数据保存在名为 `superstaff_data` 的数据卷中。普通的 `docker compose down` 不会删除数据；只有明确删除数据卷才会清空 SQLite 数据。
+## 3. 商业交付目录
 
-## 4. 给非技术用户的三种交付方式
+向客户交付时建议提供：
 
-| 方式 | 使用者需要什么 | 适用场景 |
-| --- | --- | --- |
-| GitHub ZIP | Python、Node.js | 开发者继续修改代码 |
-| Docker 一键包 | Docker Desktop | 演示、面试、团队试用 |
-| 云端网址 | 浏览器 | 普通用户直接使用 |
+```text
+superstaff-v0.5/
+├── docker-compose.yml
+├── docker-compose.local-ai.yml
+├── start-demo.bat
+├── start-local-ai.bat
+├── stop-demo.bat
+├── stop-local-ai.bat
+├── LICENSE
+├── THIRD_PARTY_NOTICES.md
+├── README.md
+└── source-or-images/        按合同选择交付源码或预构建镜像
+```
 
-Windows `.exe` 安装包适合完全离线交付，但需要进一步把 React、FastAPI、Python 运行时和升级机制封装成桌面应用。当前阶段优先保留 Web 全栈结构，Docker 可以验证同一套代码在其他电脑上能否稳定运行。
+源代码、预构建镜像、升级服务、数据迁移和现场实施应在合同中分别写清楚。默认销售“部署使用权 + 实施 + 维护”，不必默认交付源代码。
 
-## 5. 当前交付边界
+## 4. 不依赖 Docker Desktop 的后续安装包
 
-- SQLite 数据跟随本机或 Docker 数据卷，不会自动同步到其他电脑。
-- 本地生成的 WebM 视频由浏览器下载到使用者自己的下载目录。
-- 演示账号不包含密码、Cookie 或平台令牌。
-- 发布计划只保存在系统内，未获得正式平台授权前不会对外发布。
+当前 Docker 方式便于验证跨电脑运行，但客户安装的容器桌面产品可能有独立订阅条款。正式离线 Windows 安装包应进一步完成：
+
+- 将前端静态文件交给 FastAPI 同域提供；
+- 封装 Python 运行时和后台服务；
+- 将 Ollama/llama.cpp 作为经过许可证审计的可选本地引擎；
+- 增加安装、升级、卸载、日志收集和数据备份界面。
+
+这样客户无需 Node、Python 或 Docker，也不会因为容器桌面产品产生额外授权不确定性。
+
+## 5. 发布前检查
+
+- 固定容器镜像和模型的精确版本或摘要。
+- 生成传递依赖 SBOM 并归档全部许可证文本。
+- 替换客户 Logo、品牌色和示例账号，清理演示数据。
+- 验证登录、权限、备份恢复、日志脱敏和密钥管理。
+- 根据销售地区准备 EULA、隐私政策、服务范围和维护条款。

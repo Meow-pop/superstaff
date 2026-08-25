@@ -9,6 +9,7 @@ from app.container import Container
 from app.schemas.admin import (
     AuditEventRead,
     DiagnosticRead,
+    LocalModelStatusRead,
     ProviderConfigRead,
     WorkspaceSettingsRead,
     WorkspaceSettingsUpdate,
@@ -47,6 +48,11 @@ def list_audit_events(
 @router.get("/admin/diagnostics", response_model=DiagnosticRead)
 def get_diagnostics(container: Annotated[Container, Depends(get_container)]):
     return container.admin_service.diagnostics()
+
+
+@router.get("/admin/local-model", response_model=LocalModelStatusRead)
+def get_local_model_status(container: Annotated[Container, Depends(get_container)]):
+    return container.admin_service.local_model_status()
 
 
 @router.get("/admin/backups/export")

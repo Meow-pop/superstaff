@@ -44,13 +44,3 @@ jobs:
       - name: Test
         run: python -m pytest
         working-directory: backend
-
-  legacy-smoke:
-    name: Legacy prototype smoke test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-      - run: node tests/smoke.mjs

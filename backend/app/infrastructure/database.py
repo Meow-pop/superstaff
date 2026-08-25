@@ -132,6 +132,45 @@ class SQLiteDatabase:
 
                 CREATE INDEX IF NOT EXISTS idx_asset_handoffs_asset_id
                 ON asset_handoffs(asset_id, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS production_jobs (
+                    id TEXT PRIMARY KEY,
+                    handoff_id TEXT NOT NULL UNIQUE
+                        REFERENCES asset_handoffs(id) ON DELETE CASCADE,
+                    asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+                    title TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    script TEXT NOT NULL DEFAULT '',
+                    scenes_json TEXT NOT NULL DEFAULT '[]',
+                    output TEXT NOT NULL DEFAULT '',
+                    account_id TEXT,
+                    account_name TEXT NOT NULL DEFAULT '',
+                    scheduled_at TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS social_accounts (
+                    id TEXT PRIMARY KEY,
+                    platform TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    handle TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    follower_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(platform, handle)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_production_jobs_target_status
+                ON production_jobs(target, status, created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_production_jobs_asset_id
+                ON production_jobs(asset_id, created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_social_accounts_platform_status
+                ON social_accounts(platform, status);
                 """
             )
             connection.execute(
@@ -174,6 +213,30 @@ class SQLiteDatabase:
                     COALESCE(completed_at, created_at)
                 FROM workflow_runs
                 WHERE status = 'done' AND output != ''
+                """
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO production_jobs
+                (id, handoff_id, asset_id, title, target, status, script,
+                 scenes_json, output, account_id, account_name, scheduled_at,
+                 created_at, updated_at)
+                SELECT
+                    'production_legacy_' || asset_handoffs.id,
+                    asset_handoffs.id,
+                    asset_handoffs.asset_id,
+                    asset_handoffs.asset_title,
+                    asset_handoffs.target,
+                    'queued',
+                    '',
+                    '[]',
+                    '',
+                    NULL,
+                    '',
+                    NULL,
+                    asset_handoffs.created_at,
+                    asset_handoffs.created_at
+                FROM asset_handoffs
                 """
             )
             connection.execute("PRAGMA optimize")

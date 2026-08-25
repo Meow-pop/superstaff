@@ -242,3 +242,112 @@ def test_asset_handoff_creates_trackable_queue_record(client: TestClient):
         json={"target": "unknown"},
     )
     assert invalid.status_code == 422
+
+
+def create_workflow_asset(client: TestClient, workflow_id: str = "workflow-content-engine"):
+    run = client.post(
+        f"/api/v1/workflows/{workflow_id}/runs",
+        json={"input": "把超级 AI 员工内容转换成短视频制作方案"},
+    )
+    assert run.status_code == 200
+    assets = client.get(
+        "/api/v1/assets", params={"source_type": "workflow_run"}
+    ).json()
+    return next(asset for asset in assets if asset["source_id"] == run.json()["id"])
+
+
+def test_video_handoff_enters_production_and_generates_scenes(client: TestClient):
+    asset = create_workflow_asset(client)
+    handoff = client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "creative_video", "note": "生成竖版视频"},
+    )
+    assert handoff.status_code == 201
+
+    jobs = client.get(
+        "/api/v1/production-jobs", params={"target": "creative_video"}
+    )
+    assert jobs.status_code == 200
+    production_job = jobs.json()[0]
+    assert production_job["handoff_id"] == handoff.json()["id"]
+    assert production_job["status"] == "queued"
+
+    executed = client.post(
+        f"/api/v1/production-jobs/{production_job['id']}/run"
+    )
+    assert executed.status_code == 200
+    result = executed.json()
+    assert result["status"] == "review"
+    assert len(result["scenes"]) == 4
+    assert all(scene["duration_seconds"] > 0 for scene in result["scenes"])
+    assert "开场钩子" in result["script"]
+
+    approved = client.post(
+        f"/api/v1/production-jobs/{production_job['id']}/approve"
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "done"
+
+    repeated = client.post(
+        f"/api/v1/production-jobs/{production_job['id']}/run"
+    )
+    assert repeated.status_code == 409
+
+
+def test_publisher_handoff_can_be_scheduled_to_demo_account(client: TestClient):
+    accounts = client.get("/api/v1/accounts")
+    assert accounts.status_code == 200
+    assert len(accounts.json()) == 3
+    demo_account = next(item for item in accounts.json() if item["status"] == "demo")
+    disabled_account = next(
+        item for item in accounts.json() if item["status"] == "disabled"
+    )
+
+    asset = create_workflow_asset(client, "workflow-multi-platform")
+    client.post(
+        f"/api/v1/assets/{asset['id']}/handoffs",
+        json={"target": "publisher"},
+    )
+    job = client.get(
+        "/api/v1/production-jobs", params={"target": "publisher"}
+    ).json()[0]
+
+    scheduled = client.post(
+        f"/api/v1/production-jobs/{job['id']}/schedule",
+        json={
+            "account_id": demo_account["id"],
+            "scheduled_at": "2026-08-26T10:00:00+08:00",
+        },
+    )
+    assert scheduled.status_code == 200
+    assert scheduled.json()["status"] == "ready"
+    assert demo_account["display_name"] in scheduled.json()["account_name"]
+
+    blocked = client.post(
+        f"/api/v1/production-jobs/{job['id']}/schedule",
+        json={
+            "account_id": disabled_account["id"],
+            "scheduled_at": "2026-08-26T11:00:00+08:00",
+        },
+    )
+    assert blocked.status_code == 409
+
+
+def test_account_metadata_can_be_created_and_disabled(client: TestClient):
+    created = client.post(
+        "/api/v1/accounts",
+        json={
+            "platform": "B站",
+            "display_name": "超级员工工程日志",
+            "handle": "superstaff_build_log",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["status"] == "demo"
+
+    disabled = client.patch(
+        f"/api/v1/accounts/{created.json()['id']}",
+        json={"status": "disabled"},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["status"] == "disabled"

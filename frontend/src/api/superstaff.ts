@@ -4,8 +4,13 @@ import type {
   AssetRecord,
   CreateJobInput,
   CreateWorkflowInput,
+  CreateSocialAccountInput,
   Employee,
   Job,
+  ProductionJob,
+  ProductionTarget,
+  SocialAccount,
+  SocialAccountStatus,
   TaskCenterItem,
   UpdateAssetInput,
   Workflow,
@@ -70,5 +75,26 @@ export const superstaffApi = {
     request<AssetHandoff>(`/assets/${assetId}/handoffs`, {
       method: 'POST',
       body: JSON.stringify({ target, note }),
+    }),
+  listProductionJobs: (target?: ProductionTarget) =>
+    request<ProductionJob[]>(
+      `/production-jobs${target ? `?target=${encodeURIComponent(target)}` : ''}`,
+    ),
+  runProductionJob: (jobId: string) =>
+    request<ProductionJob>(`/production-jobs/${jobId}/run`, { method: 'POST' }),
+  approveProductionJob: (jobId: string) =>
+    request<ProductionJob>(`/production-jobs/${jobId}/approve`, { method: 'POST' }),
+  scheduleProductionJob: (jobId: string, accountId: string, scheduledAt: string) =>
+    request<ProductionJob>(`/production-jobs/${jobId}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId, scheduled_at: scheduledAt }),
+    }),
+  listAccounts: () => request<SocialAccount[]>('/accounts'),
+  createAccount: (input: CreateSocialAccountInput) =>
+    request<SocialAccount>('/accounts', { method: 'POST', body: JSON.stringify(input) }),
+  updateAccountStatus: (accountId: string, status: SocialAccountStatus) =>
+    request<SocialAccount>(`/accounts/${accountId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 }

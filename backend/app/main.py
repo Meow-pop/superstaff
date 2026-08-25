@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.container import Container
-from app.domain.entities import Employee, Workflow, WorkflowStep
+from app.domain.entities import Employee, SocialAccount, Workflow, WorkflowStep
 from app.domain.errors import (
     EmployeeUnavailableError,
     ExecutionError,
@@ -18,14 +18,17 @@ from app.domain.errors import (
     NotFoundError,
 )
 from app.executors.demo import DemoEmployeeExecutor
+from app.executors.production_demo import DemoProductionExecutor
 from app.executors.workflow_demo import DemoWorkflowExecutor
 from app.infrastructure.database import SQLiteDatabase
 from app.repositories.sqlite import SQLiteEmployeeRepository, SQLiteJobRepository
 from app.repositories.assets import SQLiteAssetRepository
+from app.repositories.production import SQLiteProductionRepository
 from app.repositories.workflows import SQLiteWorkflowRepository
 from app.services.assets import AssetService
 from app.services.employees import EmployeeService
 from app.services.jobs import JobService
+from app.services.production import ProductionService
 from app.services.task_center import TaskCenterService
 from app.services.workflows import WorkflowService
 
@@ -135,6 +138,42 @@ def seed_workflows() -> list[Workflow]:
     ]
 
 
+def seed_accounts() -> list[SocialAccount]:
+    created_at = datetime(2026, 8, 25, tzinfo=timezone.utc).isoformat()
+    return [
+        SocialAccount(
+            id="account-douyin-demo",
+            platform="抖音",
+            display_name="超级员工实验室",
+            handle="superstaff_demo",
+            status="demo",
+            follower_count=1280,
+            created_at=created_at,
+            updated_at=created_at,
+        ),
+        SocialAccount(
+            id="account-xiaohongshu-demo",
+            platform="小红书",
+            display_name="AI 工作流研究所",
+            handle="ai_workflow_lab",
+            status="demo",
+            follower_count=860,
+            created_at=created_at,
+            updated_at=created_at,
+        ),
+        SocialAccount(
+            id="account-wechat-demo",
+            platform="视频号",
+            display_name="熠企超级员工",
+            handle="superstaff_video",
+            status="disabled",
+            follower_count=320,
+            created_at=created_at,
+            updated_at=created_at,
+        ),
+    ]
+
+
 def create_app(database_path: str | Path | None = None) -> FastAPI:
     db_path = database_path or os.getenv(
         "SUPERSTAFF_DB_PATH", str(BASE_DIR / "data" / "superstaff.db")
@@ -147,14 +186,20 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     job_repository = SQLiteJobRepository(database)
     workflow_repository = SQLiteWorkflowRepository(database)
     asset_repository = SQLiteAssetRepository(database)
+    production_repository = SQLiteProductionRepository(database)
+    production_repository.seed_accounts(seed_accounts())
     workflow_repository.seed(seed_workflows())
     executor = DemoEmployeeExecutor()
     workflow_executor = DemoWorkflowExecutor()
+    production_executor = DemoProductionExecutor()
+    production_service = ProductionService(
+        production_repository, asset_repository, production_executor
+    )
 
     app = FastAPI(
         title="超级 AI 员工 API",
-        version="0.1.0",
-        description="AI 员工、任务执行与人工验收的后端服务。",
+        version="0.3.0",
+        description="AI 员工、工作流、成果制作、发布计划与人工验收的后端服务。",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -174,7 +219,8 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         task_center_service=TaskCenterService(
             job_repository, workflow_repository, asset_repository
         ),
-        asset_service=AssetService(asset_repository),
+        asset_service=AssetService(asset_repository, production_service),
+        production_service=production_service,
     )
     app.include_router(api_router)
 

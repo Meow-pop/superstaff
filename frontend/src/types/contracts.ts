@@ -154,3 +154,51 @@ export interface AssetHandoff {
   note: string
   created_at: string
 }
+
+export type ProductionStatus = 'queued' | 'running' | 'review' | 'ready' | 'done' | 'failed'
+export type ProductionTarget = AssetHandoffTarget
+
+export interface ProductionScene {
+  order: number
+  title: string
+  visual: string
+  narration: string
+  duration_seconds: number
+}
+
+export interface ProductionJob {
+  id: string
+  handoff_id: string
+  asset_id: string
+  title: string
+  target: ProductionTarget
+  status: ProductionStatus
+  script: string
+  scenes: ProductionScene[]
+  output: string
+  account_id: string | null
+  account_name: string
+  scheduled_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SocialPlatform = '抖音' | '小红书' | '视频号' | '快手' | 'B站'
+export type SocialAccountStatus = 'demo' | 'connected' | 'disabled'
+
+export interface SocialAccount {
+  id: string
+  platform: SocialPlatform
+  display_name: string
+  handle: string
+  status: SocialAccountStatus
+  follower_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateSocialAccountInput {
+  platform: SocialPlatform
+  display_name: string
+  handle: string
+}

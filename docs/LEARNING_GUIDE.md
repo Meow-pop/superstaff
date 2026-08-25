@@ -66,6 +66,7 @@
 1. [第 1 课：追踪一次创建任务请求](LESSON_01_REQUEST_FLOW.md)
 2. [第 2 课：一个自动工作流如何贯穿全栈](LESSON_02_WORKFLOW.md)
 3. [第 3 课：统一任务、成果资产与跨模块流转](LESSON_03_TASKS_AND_ASSETS.md)
+4. [第 4 课：从成果资产到视频与发布计划](LESSON_04_CONTENT_PRODUCTION.md)
 
 ## 项目讲解模板
 

@@ -1,6 +1,6 @@
 # Superstaff Web
 
-React + TypeScript 前端，包含总控首页、Agent 工作台、自动工作流、任务中心和成果资产。开发时通过 Vite 代理访问本地 FastAPI，浏览器只需要请求 `/api/v1`。
+React + TypeScript 前端，包含总控首页、Agent、工作流、任务与成果、视频制作、账号矩阵和发布计划。开发时通过 Vite 代理访问本地 FastAPI，浏览器只需要请求 `/api/v1`。
 
 ```powershell
 pnpm install

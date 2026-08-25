@@ -37,6 +37,15 @@ class HandoffStatus(str, Enum):
     FAILED = "failed"
 
 
+class ProductionStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    REVIEW = "review"
+    READY = "ready"
+    DONE = "done"
+    FAILED = "failed"
+
+
 @dataclass(frozen=True, slots=True)
 class Employee:
     id: str
@@ -174,5 +183,44 @@ class TaskCenterItem:
     steps: list[TaskCenterStep]
     output: str
     asset_ids: list[str]
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionScene:
+    order: int
+    title: str
+    visual: str
+    narration: str
+    duration_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionJob:
+    id: str
+    handoff_id: str
+    asset_id: str
+    title: str
+    target: str
+    status: ProductionStatus
+    script: str
+    scenes: list[ProductionScene]
+    output: str
+    account_id: str | None
+    account_name: str
+    scheduled_at: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class SocialAccount:
+    id: str
+    platform: str
+    display_name: str
+    handle: str
+    status: str
+    follower_count: int
     created_at: str
     updated_at: str

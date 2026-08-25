@@ -4,6 +4,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { AssetCenterPage } from './pages/AssetCenterPage'
 import { EmployeeWorkspace } from './pages/EmployeeWorkspace'
 import { ModulePlaceholder, type ModuleDefinition } from './pages/ModulePlaceholder'
+import { ProductionStudioPage } from './pages/ProductionStudioPage'
+import { PublishingCenterPage } from './pages/PublishingCenterPage'
 import { WorkflowPage } from './pages/WorkflowPage'
 import { TaskCenterPage } from './pages/TaskCenterPage'
 
@@ -277,7 +279,12 @@ function App() {
         {activePage === 'workflow' && <WorkflowPage />}
         {activePage === 'tasks' && <TaskCenterPage onNavigate={navigate} />}
         {activePage === 'assets' && <AssetCenterPage />}
-        {activeModule && !['workflow', 'tasks', 'assets'].includes(activePage) && <ModulePlaceholder module={activeModule} onNavigate={navigate} />}
+        {activePage === 'storyboard' && <ProductionStudioPage target="storyboard" />}
+        {activePage === 'creative-video' && <ProductionStudioPage target="creative_video" />}
+        {activePage === 'accounts' && <PublishingCenterPage variant="accounts" />}
+        {activePage === 'matrix' && <PublishingCenterPage variant="matrix" />}
+        {activePage === 'publisher' && <PublishingCenterPage variant="publisher" />}
+        {activeModule && !['workflow', 'tasks', 'assets', 'storyboard', 'creative-video', 'accounts', 'matrix', 'publisher'].includes(activePage) && <ModulePlaceholder module={activeModule} onNavigate={navigate} />}
       </div>
     </div>
   )

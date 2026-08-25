@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.domain.entities import Asset, AssetHandoff, AssetStatus, HandoffStatus
 from app.domain.errors import InvalidTransitionError, NotFoundError
 from app.repositories.protocols import AssetRepository
+from app.services.production import ProductionService
 
 
 ALLOWED_HANDOFF_TARGETS = {"creative_video", "storyboard", "publisher"}
@@ -17,8 +18,11 @@ def utc_now() -> str:
 
 
 class AssetService:
-    def __init__(self, repository: AssetRepository):
+    def __init__(
+        self, repository: AssetRepository, production: ProductionService
+    ):
         self.repository = repository
+        self.production = production
 
     def list_assets(
         self,
@@ -73,4 +77,6 @@ class AssetService:
             note=note,
             created_at=utc_now(),
         )
-        return self.repository.create_handoff(handoff)
+        created = self.repository.create_handoff(handoff)
+        self.production.create_from_handoff(created, asset)
+        return created

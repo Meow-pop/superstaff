@@ -26,6 +26,9 @@
 - 统一汇总 Agent 任务与工作流运行的任务中心。
 - 自动沉淀、搜索、编辑和归档交付成果的资产中心。
 - 可追踪的创意视频、剪辑和发布跨模块流转队列。
+- 正式创意视频与多场景剪辑任务，可生成脚本、分镜和本地 WebM。
+- 账号矩阵、演示账号管理和安全的发布排期。
+- Docker Compose 一键运行与持久化数据卷。
 - FastAPI REST API 与自动生成的接口文档。
 - SQLite 持久化员工、任务、工作流、步骤、运行记录和成果。
 - 清晰的路由、业务服务、仓储和执行器分层。
@@ -42,7 +45,19 @@ tests/      v0.2 静态原型的冒烟测试
 index.html  可立即打开的旧版静态原型
 ```
 
-完整说明见 [视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md) 和 [学习指南](docs/LEARNING_GUIDE.md)。逐功能学习可以从 [第 1 课](docs/LESSON_01_REQUEST_FLOW.md)、[第 2 课](docs/LESSON_02_WORKFLOW.md) 和 [第 3 课](docs/LESSON_03_TASKS_AND_ASSETS.md) 开始。
+完整说明见 [视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md)、[学习指南](docs/LEARNING_GUIDE.md) 和 [打包交付指南](docs/PACKAGING.md)。逐功能学习材料位于 `docs/LESSON_*.md`。
+
+## 最快查看与交付
+
+当前开发服务运行时，打开 `http://127.0.0.1:5173`。
+
+其他人可以从 GitHub 下载 ZIP。推荐安装 Docker Desktop 后在项目目录运行：
+
+```powershell
+docker compose up --build
+```
+
+然后打开 `http://127.0.0.1:8080`。Windows 也可以运行 `.\scripts\start-demo.ps1` 自动启动并打开网页。如果是交给不熟悉命令行的人，解压后直接双击根目录的 `start-demo.bat` 即可。
 
 ## 启动正式版
 
@@ -116,8 +131,8 @@ node tests\smoke.mjs
 
 ## 下一步
 
-1. 完成 M3 内容生产台，让资产真正进入脚本、素材和视频任务。
-2. 用服务端模型适配器替换演示执行器，密钥不进入前端。
-3. 增加后台任务队列、实时进度、超时和重试。
-4. 增加账号矩阵和发布前人工确认。
+1. 完成 M4 模型与媒体供应商适配层，服务端管理密钥。
+2. 增加后台任务队列、实时进度、超时和重试。
+3. 接入高质量图片、配音、视频和数字人供应商。
+4. 接入正式平台 OAuth、发布前人工确认和平台回执。
 5. 增加员工配置、工具权限、记忆和成本审计。

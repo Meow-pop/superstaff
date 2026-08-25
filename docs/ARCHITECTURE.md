@@ -144,6 +144,9 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 | `Asset` | 可以搜索、归档和跨模块复用的成果 | 来源、类型、正文、标签、状态 |
 | `AssetHandoff` | 一次成果跨模块流转任务 | 成果、目标模块、状态、时间 |
 | `TaskCenterItem` | 任务中心统一读模型 | 来源、步骤、进度、成果引用 |
+| `ProductionJob` | 视频、剪辑或发布模块的执行任务 | 交接、状态、脚本、场景、排期 |
+| `ProductionScene` | 视频制作中的一个场景 | 画面、旁白、时长、顺序 |
+| `SocialAccount` | 内容矩阵中的账号元数据 | 平台、名称、标识、授权状态 |
 
 任务状态机：
 
@@ -181,6 +184,11 @@ stateDiagram-v2
 | `GET` | `/api/v1/assets` | 搜索并筛选全部成果资产 |
 | `POST` | `/api/v1/assets/{id}/handoffs` | 创建视频、剪辑或发布流转任务 |
 | `GET` | `/api/v1/asset-handoffs` | 查询跨模块流转记录 |
+| `GET` | `/api/v1/production-jobs` | 查询视频、剪辑与发布制作任务 |
+| `POST` | `/api/v1/production-jobs/{id}/run` | 生成脚本和多场景方案 |
+| `POST` | `/api/v1/production-jobs/{id}/approve` | 人工确认制作方案 |
+| `POST` | `/api/v1/production-jobs/{id}/schedule` | 选择账号并保存发布计划 |
+| `GET/POST` | `/api/v1/accounts` | 查询或添加内容账号元数据 |
 
 所有接口以 JSON 通信。FastAPI 会自动生成 `/docs` 交互式接口文档。
 

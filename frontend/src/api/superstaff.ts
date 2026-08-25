@@ -1,5 +1,6 @@
 import type {
   AssetHandoff,
+  AuditEvent,
   AssetHandoffTarget,
   AssetRecord,
   CreateJobInput,
@@ -9,12 +10,16 @@ import type {
   Job,
   ProductionJob,
   ProductionTarget,
+  ProviderConfig,
   SocialAccount,
   SocialAccountStatus,
   TaskCenterItem,
+  SystemDiagnostics,
   UpdateAssetInput,
+  UpdateWorkspaceInput,
   Workflow,
   WorkflowRun,
+  WorkspaceSettings,
 } from '../types/contracts'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -97,4 +102,19 @@ export const superstaffApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+  getWorkspace: () => request<WorkspaceSettings>('/workspace'),
+  updateWorkspace: (input: UpdateWorkspaceInput) =>
+    request<WorkspaceSettings>('/workspace', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  listProviders: () => request<ProviderConfig[]>('/admin/providers'),
+  listAuditEvents: (limit = 100) =>
+    request<AuditEvent[]>(`/admin/audit-events?limit=${limit}`),
+  getDiagnostics: () => request<SystemDiagnostics>('/admin/diagnostics'),
+  downloadBackup: async () => {
+    const response = await fetch(`${API_BASE}/admin/backups/export`)
+    if (!response.ok) throw new Error(`备份下载失败（HTTP ${response.status}）`)
+    return response.blob()
+  },
 }

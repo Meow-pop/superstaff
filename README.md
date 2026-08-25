@@ -29,6 +29,8 @@
 - 正式创意视频与多场景剪辑任务，可生成脚本、分镜和本地 WebM。
 - 账号矩阵、演示账号管理和安全的发布排期。
 - Docker Compose 一键运行与持久化数据卷。
+- 首次使用引导、工作区配置和清晰的演示/正式能力边界。
+- 系统诊断、供应商适配状态、操作审计和全量 JSON 数据备份。
 - FastAPI REST API 与自动生成的接口文档。
 - SQLite 持久化员工、任务、工作流、步骤、运行记录和成果。
 - 清晰的路由、业务服务、仓储和执行器分层。
@@ -45,7 +47,7 @@ tests/      v0.2 静态原型的冒烟测试
 index.html  可立即打开的旧版静态原型
 ```
 
-完整说明见 [视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md)、[学习指南](docs/LEARNING_GUIDE.md) 和 [打包交付指南](docs/PACKAGING.md)。逐功能学习材料位于 `docs/LESSON_*.md`。
+完整说明见 [产品级 Demo 交付说明](docs/PRODUCT_DEMO.md)、[视频复现范围](docs/VIDEO_REPLICA_SCOPE.md)、[系统架构](docs/ARCHITECTURE.md)、[学习指南](docs/LEARNING_GUIDE.md) 和 [打包交付指南](docs/PACKAGING.md)。逐功能学习材料位于 `docs/LESSON_*.md`。
 
 ## 最快查看与交付
 

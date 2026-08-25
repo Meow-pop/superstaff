@@ -67,6 +67,7 @@
 2. [第 2 课：一个自动工作流如何贯穿全栈](LESSON_02_WORKFLOW.md)
 3. [第 3 课：统一任务、成果资产与跨模块流转](LESSON_03_TASKS_AND_ASSETS.md)
 4. [第 4 课：从成果资产到视频与发布计划](LESSON_04_CONTENT_PRODUCTION.md)
+5. [第 5 课：从“能运行”到“能交付”](LESSON_05_PRODUCT_OPERATIONS.md)
 
 ## 项目讲解模板
 

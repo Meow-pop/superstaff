@@ -351,3 +351,45 @@ def test_account_metadata_can_be_created_and_disabled(client: TestClient):
     )
     assert disabled.status_code == 200
     assert disabled.json()["status"] == "disabled"
+
+
+def test_product_admin_console_supports_workspace_diagnostics_and_backup(
+    client: TestClient,
+):
+    workspace = client.get("/api/v1/workspace")
+    assert workspace.status_code == 200
+    assert workspace.json()["demo_mode"] is True
+
+    updated = client.patch(
+        "/api/v1/workspace",
+        json={
+            "workspace_name": "超级员工产品工作区",
+            "owner_name": "论文期间托管",
+            "onboarding_completed": True,
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["workspace_name"] == "超级员工产品工作区"
+    assert updated.json()["onboarding_completed"] is True
+
+    providers = client.get("/api/v1/admin/providers")
+    assert providers.status_code == 200
+    assert len(providers.json()) >= 5
+    assert all("credential_detected" in item for item in providers.json())
+    assert all("secret" not in item for item in providers.json())
+
+    diagnostics = client.get("/api/v1/admin/diagnostics")
+    assert diagnostics.status_code == 200
+    assert diagnostics.json()["status"] == "ok"
+    assert diagnostics.json()["database_ready"] is True
+    assert "jobs" in diagnostics.json()["counts"]
+
+    audit_events = client.get("/api/v1/admin/audit-events")
+    assert audit_events.status_code == 200
+    assert any(event["resource"] == "workspace" for event in audit_events.json())
+
+    backup = client.get("/api/v1/admin/backups/export")
+    assert backup.status_code == 200
+    assert backup.headers["content-disposition"].startswith("attachment;")
+    assert backup.json()["schema_version"] == 1
+    assert "workspace_settings" in backup.json()["data"]

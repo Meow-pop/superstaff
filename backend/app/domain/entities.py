@@ -224,3 +224,38 @@ class SocialAccount:
     follower_count: int
     created_at: str
     updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class WorkspaceSettings:
+    id: str
+    workspace_name: str
+    owner_name: str
+    demo_mode: bool
+    human_approval_required: bool
+    onboarding_completed: bool
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderConfig:
+    id: str
+    category: str
+    display_name: str
+    adapter: str
+    mode: str
+    credential_env: str
+    description: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEvent:
+    id: str
+    action: str
+    resource: str
+    resource_id: str
+    summary: str
+    detail: dict[str, str | int | bool]
+    created_at: str

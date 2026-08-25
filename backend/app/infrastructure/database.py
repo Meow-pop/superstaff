@@ -171,6 +171,56 @@ class SQLiteDatabase:
 
                 CREATE INDEX IF NOT EXISTS idx_social_accounts_platform_status
                 ON social_accounts(platform, status);
+
+                CREATE TABLE IF NOT EXISTS workspace_settings (
+                    id TEXT PRIMARY KEY,
+                    workspace_name TEXT NOT NULL,
+                    owner_name TEXT NOT NULL,
+                    demo_mode INTEGER NOT NULL DEFAULT 1,
+                    human_approval_required INTEGER NOT NULL DEFAULT 1,
+                    onboarding_completed INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS provider_configs (
+                    id TEXT PRIMARY KEY,
+                    category TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    adapter TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    credential_env TEXT NOT NULL DEFAULT '',
+                    description TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    resource TEXT NOT NULL,
+                    resource_id TEXT NOT NULL DEFAULT '',
+                    summary TEXT NOT NULL,
+                    detail_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_audit_events_created_at
+                ON audit_events(created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_audit_events_resource
+                ON audit_events(resource, resource_id, created_at DESC);
+                """
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO workspace_settings
+                (id, workspace_name, owner_name, demo_mode,
+                 human_approval_required, onboarding_completed,
+                 created_at, updated_at)
+                VALUES (
+                    'default', '创始人工作区', '企业管理员', 1, 1, 0,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
                 """
             )
             connection.execute(

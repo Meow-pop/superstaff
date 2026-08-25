@@ -202,3 +202,58 @@ export interface CreateSocialAccountInput {
   display_name: string
   handle: string
 }
+
+export interface WorkspaceSettings {
+  id: string
+  workspace_name: string
+  owner_name: string
+  demo_mode: boolean
+  human_approval_required: boolean
+  onboarding_completed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdateWorkspaceInput {
+  workspace_name?: string
+  owner_name?: string
+  demo_mode?: boolean
+  human_approval_required?: boolean
+  onboarding_completed?: boolean
+}
+
+export type ProviderCategory = 'language' | 'image' | 'voice' | 'video' | 'publishing'
+export type ProviderMode = 'active' | 'demo' | 'waiting'
+
+export interface ProviderConfig {
+  id: string
+  category: ProviderCategory
+  display_name: string
+  adapter: string
+  mode: ProviderMode
+  credential_env: string
+  credential_detected: boolean
+  description: string
+  updated_at: string
+}
+
+export interface AuditEvent {
+  id: string
+  action: string
+  resource: string
+  resource_id: string
+  summary: string
+  detail: Record<string, string | number | boolean>
+  created_at: string
+}
+
+export interface SystemDiagnostics {
+  status: 'ok' | 'degraded'
+  version: string
+  runtime: string
+  storage: string
+  database_ready: boolean
+  database_size_bytes: number
+  counts: Record<string, number>
+  checked_at: string
+}

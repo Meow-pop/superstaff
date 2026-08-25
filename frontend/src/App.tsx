@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { superstaffApi } from './api/superstaff'
 import { DashboardPage } from './pages/DashboardPage'
 import { AssetCenterPage } from './pages/AssetCenterPage'
 import { EmployeeWorkspace } from './pages/EmployeeWorkspace'
@@ -8,6 +9,8 @@ import { ProductionStudioPage } from './pages/ProductionStudioPage'
 import { PublishingCenterPage } from './pages/PublishingCenterPage'
 import { WorkflowPage } from './pages/WorkflowPage'
 import { TaskCenterPage } from './pages/TaskCenterPage'
+import { SystemConsolePage } from './pages/SystemConsolePage'
+import type { WorkspaceSettings } from './types/contracts'
 
 export type PageKey =
   | 'home'
@@ -31,6 +34,7 @@ export type PageKey =
   | 'customer'
   | 'chats'
   | 'contacts'
+  | 'settings'
 
 interface NavItem {
   key: PageKey
@@ -52,6 +56,7 @@ const navigation: NavGroup[] = [
       { key: 'assistant', label: 'AI 大模型助手', icon: '▦' },
       { key: 'brain', label: 'AI 企业大脑', icon: '♟' },
       { key: 'design', label: 'AI 智能设计', icon: '✣' },
+      { key: 'settings', label: '系统控制台', icon: '⚙' },
     ],
   },
   {
@@ -208,10 +213,17 @@ const moduleDefinitions: Partial<Record<PageKey, ModuleDefinition>> = {
 function App() {
   const [activePage, setActivePage] = useState<PageKey>('home')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [workspace, setWorkspace] = useState<WorkspaceSettings | null>(null)
+  const [onboardingBusy, setOnboardingBusy] = useState(false)
+
+  useEffect(() => {
+    superstaffApi.getWorkspace().then(setWorkspace).catch(() => undefined)
+  }, [])
 
   const activeLabel = useMemo(() => {
     if (activePage === 'home') return '首页'
     if (activePage === 'agent') return 'Agent 智能体'
+    if (activePage === 'settings') return '系统控制台'
     return moduleDefinitions[activePage]?.title ?? '超级员工'
   }, [activePage])
 
@@ -222,6 +234,17 @@ function App() {
   }
 
   const activeModule = moduleDefinitions[activePage]
+
+  async function completeOnboarding(nextPage: PageKey = 'agent') {
+    setOnboardingBusy(true)
+    try {
+      const updated = await superstaffApi.updateWorkspace({ onboarding_completed: true })
+      setWorkspace(updated)
+      setActivePage(nextPage)
+    } finally {
+      setOnboardingBusy(false)
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -252,7 +275,7 @@ function App() {
 
         <div className="sidebar-account">
           <div>创</div>
-          <span><strong>创始人工作区</strong><small>企业管理员</small></span>
+          <span><strong>{workspace?.workspace_name ?? '创始人工作区'}</strong><small>{workspace?.owner_name ?? '企业管理员'}</small></span>
           <i>⌄</i>
         </div>
       </aside>
@@ -266,11 +289,11 @@ function App() {
             <span className="topbar-page-name">{activeLabel}</span>
           </div>
           <div className="topbar-meta">
-            <span>到期时间：2027-09-18 10:33:26</span>
-            <span>剩余点数：<b>12,234.30</b></span>
-            <button type="button" title="帮助">?</button>
+            <span className="runtime-chip"><i /> 系统在线</span>
+            <span className="demo-mode-chip">{workspace?.demo_mode === false ? '正式模式' : '产品演示模式'}</span>
+            <button type="button" title="系统控制台" onClick={() => navigate('settings')}>⚙</button>
             <button type="button" title="通知">♢<i /></button>
-            <span className="feedback-chip">工单反馈</span>
+            <span className="feedback-chip">v0.4</span>
           </div>
         </header>
 
@@ -284,8 +307,11 @@ function App() {
         {activePage === 'accounts' && <PublishingCenterPage variant="accounts" />}
         {activePage === 'matrix' && <PublishingCenterPage variant="matrix" />}
         {activePage === 'publisher' && <PublishingCenterPage variant="publisher" />}
+        {activePage === 'settings' && <SystemConsolePage onWorkspaceUpdated={setWorkspace} />}
         {activeModule && !['workflow', 'tasks', 'assets', 'storyboard', 'creative-video', 'accounts', 'matrix', 'publisher'].includes(activePage) && <ModulePlaceholder module={activeModule} onNavigate={navigate} />}
       </div>
+
+      {workspace && !workspace.onboarding_completed && <div className="onboarding-backdrop"><section className="onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div className="onboarding-brand"><i>✦</i><span>SUPERSTAFF PRODUCT DEMO</span></div><h1 id="onboarding-title">你的超级员工工作区已经准备好了</h1><p>这不是视频生成器，而是一套从业务目标到成果交付、内容制作和发布排期的 AI 员工系统。</p><div className="onboarding-steps"><article><i>1</i><div><strong>下达目标</strong><span>选择“小策”，描述想完成的业务任务。</span></div></article><article><i>2</i><div><strong>执行与验收</strong><span>查看自动计划、步骤产出并由人工确认成果。</span></div></article><article><i>3</i><div><strong>复用与流转</strong><span>成果进入资产中心，再送往视频、剪辑或发布排期。</span></div></article></div><div className="onboarding-safety"><i>!</i><span><b>当前处于产品演示模式</b><small>不会自动登录或向外部平台发布，供应商密钥也不会保存在前端。</small></span></div><footer><button type="button" disabled={onboardingBusy} onClick={() => void completeOnboarding('settings')}>先看系统配置</button><button type="button" className="primary" disabled={onboardingBusy} onClick={() => void completeOnboarding()}>{onboardingBusy ? '正在进入…' : '开始使用超级员工 →'}</button></footer></section></div>}
     </div>
   )
 }

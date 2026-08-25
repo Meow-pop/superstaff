@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,7 +11,13 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.container import Container
-from app.domain.entities import Employee, SocialAccount, Workflow, WorkflowStep
+from app.domain.entities import (
+    Employee,
+    ProviderConfig,
+    SocialAccount,
+    Workflow,
+    WorkflowStep,
+)
 from app.domain.errors import (
     EmployeeUnavailableError,
     ExecutionError,
@@ -23,9 +30,11 @@ from app.executors.workflow_demo import DemoWorkflowExecutor
 from app.infrastructure.database import SQLiteDatabase
 from app.repositories.sqlite import SQLiteEmployeeRepository, SQLiteJobRepository
 from app.repositories.assets import SQLiteAssetRepository
+from app.repositories.admin import SQLiteAdminRepository
 from app.repositories.production import SQLiteProductionRepository
 from app.repositories.workflows import SQLiteWorkflowRepository
 from app.services.assets import AssetService
+from app.services.admin import AdminService
 from app.services.employees import EmployeeService
 from app.services.jobs import JobService
 from app.services.production import ProductionService
@@ -34,6 +43,7 @@ from app.services.workflows import WorkflowService
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+logger = logging.getLogger(__name__)
 
 
 def seed_employees() -> list[Employee]:
@@ -174,6 +184,79 @@ def seed_accounts() -> list[SocialAccount]:
     ]
 
 
+def seed_providers() -> list[ProviderConfig]:
+    updated_at = datetime(2026, 8, 25, tzinfo=timezone.utc).isoformat()
+    definitions = [
+        (
+            "language-demo",
+            "language",
+            "内置语言执行器",
+            "DemoEmployeeExecutor",
+            "demo",
+            "",
+            "无需密钥，稳定演示规划、执行和成果交付闭环。",
+        ),
+        (
+            "image-external",
+            "image",
+            "图片生成供应商",
+            "ExternalImageAdapter",
+            "waiting",
+            "SUPERSTAFF_IMAGE_API_KEY",
+            "适配层已预留，配置正式供应商后启用高质量画面。",
+        ),
+        (
+            "voice-external",
+            "voice",
+            "语音合成供应商",
+            "ExternalVoiceAdapter",
+            "waiting",
+            "SUPERSTAFF_VOICE_API_KEY",
+            "正式配音只从服务端环境读取凭据，不在浏览器保存密钥。",
+        ),
+        (
+            "video-local",
+            "video",
+            "浏览器本地渲染",
+            "CanvasMediaRecorder",
+            "active",
+            "",
+            "当前可用，可下载带基础音轨的 WebM 演示视频。",
+        ),
+        (
+            "video-external",
+            "video",
+            "云端视频供应商",
+            "ExternalVideoAdapter",
+            "waiting",
+            "SUPERSTAFF_VIDEO_API_KEY",
+            "用于后续替换本地演示画面，制作任务和人工审核流程保持不变。",
+        ),
+        (
+            "publishing-oauth",
+            "publishing",
+            "平台官方授权",
+            "OfficialPlatformOAuth",
+            "waiting",
+            "SUPERSTAFF_PUBLISHING_CLIENT_SECRET",
+            "当前只保存发布计划；获得官方授权后才允许真实发布。",
+        ),
+    ]
+    return [
+        ProviderConfig(
+            id=item[0],
+            category=item[1],
+            display_name=item[2],
+            adapter=item[3],
+            mode=item[4],
+            credential_env=item[5],
+            description=item[6],
+            updated_at=updated_at,
+        )
+        for item in definitions
+    ]
+
+
 def create_app(database_path: str | Path | None = None) -> FastAPI:
     db_path = database_path or os.getenv(
         "SUPERSTAFF_DB_PATH", str(BASE_DIR / "data" / "superstaff.db")
@@ -187,7 +270,9 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     workflow_repository = SQLiteWorkflowRepository(database)
     asset_repository = SQLiteAssetRepository(database)
     production_repository = SQLiteProductionRepository(database)
+    admin_repository = SQLiteAdminRepository(database)
     production_repository.seed_accounts(seed_accounts())
+    admin_repository.seed_providers(seed_providers())
     workflow_repository.seed(seed_workflows())
     executor = DemoEmployeeExecutor()
     workflow_executor = DemoWorkflowExecutor()
@@ -195,10 +280,11 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     production_service = ProductionService(
         production_repository, asset_repository, production_executor
     )
+    admin_service = AdminService(admin_repository, Path(db_path))
 
     app = FastAPI(
         title="超级 AI 员工 API",
-        version="0.3.0",
+        version="0.4.0",
         description="AI 员工、工作流、成果制作、发布计划与人工验收的后端服务。",
     )
     app.add_middleware(
@@ -209,6 +295,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.state.container = Container(
+        admin_service=admin_service,
         employee_service=EmployeeService(employee_repository),
         job_service=JobService(
             employee_repository, job_repository, asset_repository, executor
@@ -223,6 +310,26 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         production_service=production_service,
     )
     app.include_router(api_router)
+
+    @app.middleware("http")
+    async def audit_successful_write(request: Request, call_next):
+        response = await call_next(request)
+        should_audit = request.method in {
+            "POST",
+            "PATCH",
+            "DELETE",
+        } or request.url.path.endswith("/admin/backups/export")
+        if should_audit and response.status_code < 400:
+            try:
+                admin_service.record_http_mutation(
+                    request.method,
+                    request.url.path,
+                    response.status_code,
+                    request.url.query,
+                )
+            except Exception:
+                logger.exception("Failed to record audit event")
+        return response
 
     @app.exception_handler(NotFoundError)
     async def handle_not_found(_: Request, exc: NotFoundError):

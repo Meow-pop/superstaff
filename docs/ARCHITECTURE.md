@@ -147,6 +147,9 @@ AI 层不是整个系统，只是后端可以调用的一种能力：
 | `ProductionJob` | 视频、剪辑或发布模块的执行任务 | 交接、状态、脚本、场景、排期 |
 | `ProductionScene` | 视频制作中的一个场景 | 画面、旁白、时长、顺序 |
 | `SocialAccount` | 内容矩阵中的账号元数据 | 平台、名称、标识、授权状态 |
+| `WorkspaceSettings` | 单工作区的产品设置 | 名称、运行模式、人工确认、首次引导 |
+| `ProviderConfig` | 能力供应商适配状态 | 类别、适配器、模式、凭据环境变量名 |
+| `AuditEvent` | 成功写操作的审计记录 | 动作、资源、状态码、时间 |
 
 任务状态机：
 
@@ -189,6 +192,11 @@ stateDiagram-v2
 | `POST` | `/api/v1/production-jobs/{id}/approve` | 人工确认制作方案 |
 | `POST` | `/api/v1/production-jobs/{id}/schedule` | 选择账号并保存发布计划 |
 | `GET/POST` | `/api/v1/accounts` | 查询或添加内容账号元数据 |
+| `GET/PATCH` | `/api/v1/workspace` | 查询或更新工作区设置 |
+| `GET` | `/api/v1/admin/providers` | 查询能力适配器和凭据检测状态 |
+| `GET` | `/api/v1/admin/diagnostics` | 查询版本、运行时、存储和业务计数 |
+| `GET` | `/api/v1/admin/audit-events` | 查询成功写操作审计 |
+| `GET` | `/api/v1/admin/backups/export` | 下载全量 JSON 数据备份 |
 
 所有接口以 JSON 通信。FastAPI 会自动生成 `/docs` 交互式接口文档。
 
